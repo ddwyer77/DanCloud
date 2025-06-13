@@ -1,4 +1,4 @@
-import { supabase } from '../config/supabase';
+import { supabase } from './supabase';
 import { Track, TrackUploadData, UploadProgress, Comment } from '../types';
 
 export const trackService = {
@@ -34,34 +34,26 @@ export const trackService = {
       .select(`
         *,
         user:users(id, username, profile_image_url),
-        is_liked:likes!left(user_id),
-        is_reposted:reposts!left(user_id)
+        likes:likes(user_id),
+        reposts:reposts(user_id)
       `)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
+      .eq('is_public', true)
+      .limit(limit)
+      .order('created_at', { ascending: false });
 
-    // Filter by user's following if userId provided
-    if (userId) {
-      const { data: following } = await supabase
-        .from('follows')
-        .select('following_id')
-        .eq('follower_id', userId);
-
-      const followingIds = following?.map(f => f.following_id) || [];
-      followingIds.push(userId); // Include user's own tracks
-
-      query = query.in('user_id', followingIds);
+    if (offset > 0) {
+      query = query.range(offset, offset + limit - 1);
     }
 
     const { data, error } = await query;
-
+    
     if (error) throw new Error(error.message);
-
-    // Process the data to set boolean flags
+    
     return (data || []).map(track => ({
       ...track,
-      is_liked: userId ? track.is_liked?.some((like: any) => like.user_id === userId) : false,
-      is_reposted: userId ? track.is_reposted?.some((repost: any) => repost.user_id === userId) : false,
+      comment_count: (track as any).comments_count || 0,
+      is_liked: userId ? track.likes?.some((like: any) => like.user_id === userId) || false : false,
+      is_reposted: userId ? track.reposts?.some((repost: any) => repost.user_id === userId) || false : false,
     }));
   },
 
@@ -77,18 +69,20 @@ export const trackService = {
       .select(`
         *,
         user:users(id, username, profile_image_url),
-        is_liked:likes!left(user_id),
-        is_reposted:reposts!left(user_id)
+        likes:likes(user_id),
+        reposts:reposts(user_id)
       `)
       .eq('id', trackId)
       .single();
 
     if (error) throw new Error(error.message);
+    if (!data) throw new Error('Track not found');
 
     return {
       ...data,
-      is_liked: userId ? data.is_liked?.some((like: any) => like.user_id === userId) : false,
-      is_reposted: userId ? data.is_reposted?.some((repost: any) => repost.user_id === userId) : false,
+      comment_count: (data as any).comments_count || 0,
+      is_liked: userId ? data.likes?.some((like: any) => like.user_id === userId) || false : false,
+      is_reposted: userId ? data.reposts?.some((repost: any) => repost.user_id === userId) || false : false,
     };
   },
 
@@ -104,7 +98,10 @@ export const trackService = {
       .order('created_at', { ascending: false });
 
     if (error) throw new Error(error.message);
-    return data || [];
+    return (data || []).map(track => ({
+      ...track,
+      comment_count: (track as any).comments_count || 0,
+    }));
   },
 
   // Upload track
@@ -496,13 +493,12 @@ export const trackService = {
 
   // Update track counts
   async updateTrackCounts(trackId: string): Promise<void> {
-    // Update like count
+    // Get current counts from related tables
     const { data: likes } = await supabase
       .from('likes')
       .select('id', { count: 'exact' })
       .eq('track_id', trackId);
 
-    // Update repost count
     const { data: reposts } = await supabase
       .from('reposts')
       .select('id', { count: 'exact' })
@@ -519,7 +515,7 @@ export const trackService = {
       .update({
         like_count: likes?.length || 0,
         repost_count: reposts?.length || 0,
-        comment_count: comments?.length || 0,
+        comments_count: comments?.length || 0,
       })
       .eq('id', trackId);
   },
@@ -537,7 +533,10 @@ export const trackService = {
       .order('created_at', { ascending: false });
 
     if (error) throw new Error(error.message);
-    return data || [];
+    return (data || []).map(track => ({
+      ...track,
+      comment_count: (track as any).comments_count || 0,
+    }));
   },
 
   // Increment play count

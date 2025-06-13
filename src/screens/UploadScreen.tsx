@@ -9,6 +9,10 @@ import {
   ScrollView,
   Image,
   SafeAreaView,
+  KeyboardAvoidingView,
+  Platform,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
@@ -169,105 +173,123 @@ const UploadScreen = ({ navigation }: any) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Upload Track</Text>
-        <View style={{ width: 24 }} />
-      </View>
-
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Audio File *</Text>
-          <TouchableOpacity style={styles.fileButton} onPress={pickAudioFile}>
-            <Ionicons name="musical-notes" size={24} color="#007AFF" />
-            <Text style={styles.fileButtonText}>
-              {audioFile ? audioFile.name : 'Select Audio File (MP3, WAV)'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Cover Art</Text>
-          <TouchableOpacity style={styles.imageButton} onPress={pickCoverArt}>
-            {coverArt ? (
-              <Image source={{ uri: coverArt.uri }} style={styles.coverPreview} />
-            ) : (
-              <View style={styles.imagePlaceholder}>
-                <Ionicons name="image" size={32} color="#ccc" />
-                <Text style={styles.imagePlaceholderText}>Add Cover Art</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Title *</Text>
-          <TextInput
-            style={styles.input}
-            value={title}
-            onChangeText={setTitle}
-            placeholder="Enter track title"
-            maxLength={100}
-          />
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Description</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            value={description}
-            onChangeText={setDescription}
-            placeholder="Describe your track..."
-            multiline
-            numberOfLines={4}
-            maxLength={500}
-          />
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Tags</Text>
-          <TextInput
-            style={styles.input}
-            value={tags}
-            onChangeText={setTags}
-            placeholder="Enter tags separated by commas (e.g., hip-hop, electronic)"
-            maxLength={200}
-          />
-          <Text style={styles.helperText}>Separate tags with commas</Text>
-        </View>
-
-        {uploadProgress.isUploading && (
-          <View style={styles.progressContainer}>
-            <Text style={styles.progressText}>
-              Uploading... {Math.round(uploadProgress.progress)}%
-            </Text>
-            <View style={styles.progressBar}>
-              <View
-                style={[
-                  styles.progressFill,
-                  { width: `${uploadProgress.progress}%` },
-                ]}
-              />
+      <KeyboardAvoidingView 
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View style={styles.container}>
+            <View style={styles.header}>
+              <TouchableOpacity onPress={() => navigation.goBack()}>
+                <Ionicons name="arrow-back" size={24} color="#333" />
+              </TouchableOpacity>
+              <Text style={styles.headerTitle}>Upload Track</Text>
+              <View style={{ width: 24 }} />
             </View>
-          </View>
-        )}
 
-        <TouchableOpacity
-          style={[
-            styles.uploadButton,
-            (!audioFile || !title.trim() || uploadProgress.isUploading) &&
-              styles.uploadButtonDisabled,
-          ]}
-          onPress={handleUpload}
-          disabled={!audioFile || !title.trim() || uploadProgress.isUploading}
-        >
-          <Text style={styles.uploadButtonText}>
-            {uploadProgress.isUploading ? 'Uploading...' : 'Upload Track'}
-          </Text>
-        </TouchableOpacity>
-      </ScrollView>
+            <ScrollView 
+              style={styles.content} 
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.scrollContent}
+            >
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Audio File *</Text>
+                <TouchableOpacity style={styles.fileButton} onPress={pickAudioFile}>
+                  <Ionicons name="musical-notes" size={24} color="#007AFF" />
+                  <Text style={styles.fileButtonText}>
+                    {audioFile ? audioFile.name : 'Select Audio File (MP3, WAV)'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Cover Art</Text>
+                <TouchableOpacity style={styles.imageButton} onPress={pickCoverArt}>
+                  {coverArt ? (
+                    <Image source={{ uri: coverArt.uri }} style={styles.coverPreview} />
+                  ) : (
+                    <View style={styles.imagePlaceholder}>
+                      <Ionicons name="image" size={32} color="#ccc" />
+                      <Text style={styles.imagePlaceholderText}>Add Cover Art</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Title *</Text>
+                <TextInput
+                  style={styles.input}
+                  value={title}
+                  onChangeText={setTitle}
+                  placeholder="Enter track title"
+                  maxLength={100}
+                  returnKeyType="next"
+                />
+              </View>
+
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Description</Text>
+                <TextInput
+                  style={[styles.input, styles.textArea]}
+                  value={description}
+                  onChangeText={setDescription}
+                  placeholder="Describe your track..."
+                  multiline
+                  numberOfLines={4}
+                  maxLength={500}
+                  textAlignVertical="top"
+                />
+              </View>
+
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Tags</Text>
+                <TextInput
+                  style={styles.input}
+                  value={tags}
+                  onChangeText={setTags}
+                  placeholder="Enter tags separated by commas (e.g., hip-hop, electronic)"
+                  maxLength={200}
+                  returnKeyType="done"
+                />
+                <Text style={styles.helperText}>Separate tags with commas</Text>
+              </View>
+
+              {uploadProgress.isUploading && (
+                <View style={styles.progressContainer}>
+                  <Text style={styles.progressText}>
+                    Uploading... {Math.round(uploadProgress.progress)}%
+                  </Text>
+                  <View style={styles.progressBar}>
+                    <View
+                      style={[
+                        styles.progressFill,
+                        { width: `${uploadProgress.progress}%` },
+                      ]}
+                    />
+                  </View>
+                </View>
+              )}
+
+              <TouchableOpacity
+                style={[
+                  styles.uploadButton,
+                  (!audioFile || !title.trim() || uploadProgress.isUploading) &&
+                    styles.uploadButtonDisabled,
+                ]}
+                onPress={handleUpload}
+                disabled={!audioFile || !title.trim() || uploadProgress.isUploading}
+              >
+                <Text style={styles.uploadButtonText}>
+                  {uploadProgress.isUploading ? 'Uploading...' : 'Upload Track'}
+                </Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -294,6 +316,9 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 16,
+  },
+  scrollContent: {
+    paddingBottom: 40,
   },
   section: {
     marginVertical: 16,
@@ -379,16 +404,18 @@ const styles = StyleSheet.create({
   progressFill: {
     height: '100%',
     backgroundColor: '#007AFF',
+    borderRadius: 2,
   },
   uploadButton: {
     backgroundColor: '#007AFF',
     borderRadius: 8,
     padding: 16,
     alignItems: 'center',
-    marginVertical: 24,
+    marginTop: 24,
+    marginBottom: 32,
   },
   uploadButtonDisabled: {
-    backgroundColor: '#ccc',
+    opacity: 0.6,
   },
   uploadButtonText: {
     color: '#fff',

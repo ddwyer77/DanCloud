@@ -1,4 +1,4 @@
-import { supabase } from '../config/supabase';
+import { supabase } from './supabase';
 import { User, Follower } from '../types';
 
 export const userService = {

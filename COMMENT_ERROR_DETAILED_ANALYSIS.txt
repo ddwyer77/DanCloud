@@ -1,0 +1,166 @@
+DANCLOUD COMMENT ERROR - DETAILED TECHNICAL ANALYSIS
+=====================================================
+
+CURRENT ERROR:
+--------------
+ERROR: Error adding comment: {"code": "42501", "details": null, "hint": null, "message": "new row violates row-level security policy for table \"comments\""}
+
+This is a PostgreSQL Row Level Security (RLS) policy violation error occurring when trying to insert comments into the Supabase database.
+
+APP ARCHITECTURE OVERVIEW:
+--------------------------
+- React Native/Expo app using TypeScript
+- Supabase backend (PostgreSQL database with RLS enabled)
+- Authentication via Supabase Auth
+- Database schema managed through Supabase migrations
+- Project structure: /Users/danieldwyer/Desktop/DanCloud/DanCloud/
+
+AUTHENTICATION FLOW:
+-------------------
+- User successfully authenticates with Supabase Auth
+- Auth state shows: SIGNED_IN with user ID: d41c9925-6479-4941-820e-1386bdcb308a
+- User profile is fetched successfully from the users table
+- User has username: "moneymaker" and email: "ddwyer77@gmail.com"
+
+DATABASE SCHEMA (Comments Table):
+--------------------------------
+CREATE TABLE comments (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  track_id UUID NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
+  content TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CURRENT RLS POLICIES (Latest Migration):
+----------------------------------------
+File: supabase/migrations/20250613195118_fix_comments_rls_policy.sql
+
+CREATE POLICY "Authenticated users can insert comments" ON comments
+  FOR INSERT
+  WITH CHECK (
+    auth.role() = 'authenticated' AND
+    user_id = auth.uid()
+  );
+
+CREATE POLICY "Users can view all comments" ON comments
+  FOR SELECT
+  USING (true);
+
+CREATE POLICY "Users can update own comments" ON comments
+  FOR UPDATE
+  USING (user_id = auth.uid())
+  WITH CHECK (user_id = auth.uid());
+
+CREATE POLICY "Users can delete own comments" ON comments
+  FOR DELETE
+  USING (user_id = auth.uid());
+
+COMMENT SERVICE IMPLEMENTATION:
+------------------------------
+File: src/services/commentService.ts
+
+async addComment(trackId: string, userId: string, commentText: string): Promise<Comment> {
+  const { data, error } = await supabase
+    .from('comments')
+    .insert([
+      {
+        track_id: trackId,
+        user_id: userId,
+        content: commentText,
+      }
+    ])
+    .select(`
+      *,
+      user:users(id, username, profile_image_url)
+    `)
+    .single();
+
+  if (error) throw error;
+  // ... rest of function
+}
+
+HOW COMMENT ADDING IS CALLED:
+-----------------------------
+From TrackDetailScreen.tsx:
+const comment = await commentService.addComment(track.id, user.id, newComment.trim());
+
+Where:
+- track.id = UUID of the track
+- user.id = "d41c9925-6479-4941-820e-1386bdcb308a" (from user profile)
+- newComment.trim() = the comment text
+
+PROBLEM ANALYSIS:
+----------------
+1. The RLS policy expects user_id = auth.uid()
+2. auth.uid() returns the authenticated user's UUID from Supabase Auth
+3. user.id comes from the users table profile data
+4. These two values should be the same but the RLS policy is still failing
+
+POTENTIAL CAUSES:
+----------------
+1. TYPE MISMATCH: auth.uid() returns UUID, user.id might be string
+2. USER PROFILE MISMATCH: The user.id from the profile might not match auth.uid()
+3. AUTHENTICATION CONTEXT: The RLS policy might not be seeing the correct auth context
+4. MIGRATION CONFLICTS: Multiple migrations have modified RLS policies, causing conflicts
+
+MIGRATION HISTORY (Relevant):
+----------------------------
+- 20241213000000_initial_schema.sql - Initial RLS policies
+- 20250113000001_fix_comments_rls_policies.sql - First fix attempt
+- 20250113000003_fix_comments_rls_simple.sql - Second fix attempt
+- 20250113000004_temp_disable_comments_rls.sql - Temporary disable
+- 20250113000006_re_enable_comments_rls_fixed_types.sql - Re-enable attempt
+- 20250613190839_add_comment_count_functions.sql - Added RPC functions
+- 20250613195118_fix_comments_rls_policy.sql - Latest fix attempt
+
+ENVIRONMENT CONFIGURATION:
+--------------------------
+.env file:
+EXPO_PUBLIC_SUPABASE_URL=https://wwwqwfbygmuiwkwqsajb.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3d3F3ZmJ5Z211aXdrd3FzYWpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk2OTIyMjksImV4cCI6MjA2NTI2ODIyOX0.NfMiTuw8yjOW63NIdE7jA7DT6LPAVxJWcikta0NN8kk
+
+DEBUGGING STEPS ATTEMPTED:
+--------------------------
+1. Multiple RLS policy recreations
+2. Type casting attempts (UUID to text and back)
+3. Database resets with new migrations
+4. Verified table schema and column types
+5. Confirmed authentication is working
+6. Added RPC functions for comment count management
+
+CURRENT STATUS:
+--------------
+- User can authenticate successfully
+- User profile loads correctly
+- All other database operations work
+- Only comment insertion fails with RLS policy violation
+- Local Supabase instance is running and migrations are applied
+- App is running on Expo (port 8082)
+
+NEXT DEBUGGING STEPS NEEDED:
+---------------------------
+1. Verify what auth.uid() actually returns in the database context
+2. Compare auth.uid() with the user.id being passed from frontend
+3. Check if there are conflicting RLS policies from multiple migrations
+4. Consider temporarily disabling RLS to test if the insert works
+5. Debug the exact values being compared in the RLS policy
+6. Verify the user exists in both auth.users and public.users tables
+
+FILES TO EXAMINE:
+----------------
+- src/services/commentService.ts (comment insertion logic)
+- src/screens/TrackDetailScreen.tsx (how addComment is called)
+- supabase/migrations/*.sql (all RLS policy changes)
+- src/services/authService.ts (authentication logic)
+- src/types/index.ts (type definitions)
+
+SUPABASE PROJECT INFO:
+---------------------
+- Project URL: https://wwwqwfbygmuiwkwqsajb.supabase.co
+- Local development setup using Docker
+- Database accessible at: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+- Studio URL: http://127.0.0.1:54323
+
+This error suggests a fundamental mismatch between the authenticated user context and the RLS policy expectations. The solution likely involves either fixing the RLS policy logic or ensuring the correct user ID is being passed to the comment insertion. 

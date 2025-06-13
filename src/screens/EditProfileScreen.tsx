@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,10 @@ import {
   Alert,
   Image,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
@@ -114,66 +118,84 @@ const EditProfileScreen = ({ navigation }: any) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Edit Profile</Text>
-        <TouchableOpacity
-          onPress={handleSave}
-          disabled={loading}
-          style={[styles.saveButton, loading && styles.saveButtonDisabled]}
-        >
-          <Text style={styles.saveButtonText}>
-            {loading ? 'Saving...' : 'Save'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.imageSection}>
-          <TouchableOpacity onPress={pickImage} style={styles.imageContainer}>
-            <Image
-              source={{
-                uri: profileImage?.uri || user?.profile_image_url || 'https://via.placeholder.com/120',
-              }}
-              style={styles.profileImage}
-            />
-            <View style={styles.imageOverlay}>
-              <Ionicons name="camera" size={24} color="#fff" />
+      <KeyboardAvoidingView 
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View style={styles.container}>
+            <View style={styles.header}>
+              <TouchableOpacity onPress={() => navigation.goBack()}>
+                <Ionicons name="arrow-back" size={24} color="#333" />
+              </TouchableOpacity>
+              <Text style={styles.headerTitle}>Edit Profile</Text>
+              <TouchableOpacity
+                onPress={handleSave}
+                disabled={loading}
+                style={[styles.saveButton, loading && styles.saveButtonDisabled]}
+              >
+                <Text style={styles.saveButtonText}>
+                  {loading ? 'Saving...' : 'Save'}
+                </Text>
+              </TouchableOpacity>
             </View>
-          </TouchableOpacity>
-          <Text style={styles.imageHint}>Tap to change profile photo</Text>
-        </View>
 
-        <View style={styles.form}>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Username *</Text>
-            <TextInput
-              style={styles.input}
-              value={username}
-              onChangeText={setUsername}
-              placeholder="Enter username"
-              autoCapitalize="none"
-              maxLength={30}
-            />
-          </View>
+            <ScrollView 
+              style={styles.content} 
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.scrollContent}
+            >
+              <View style={styles.imageSection}>
+                <TouchableOpacity onPress={pickImage} style={styles.imageContainer}>
+                  <Image
+                    source={{
+                      uri: profileImage?.uri || user?.profile_image_url || 'https://via.placeholder.com/120',
+                    }}
+                    style={styles.profileImage}
+                  />
+                  <View style={styles.imageOverlay}>
+                    <Ionicons name="camera" size={24} color="#fff" />
+                  </View>
+                </TouchableOpacity>
+                <Text style={styles.imageHint}>Tap to change profile photo</Text>
+              </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Bio</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              value={bio}
-              onChangeText={setBio}
-              placeholder="Tell us about yourself..."
-              multiline
-              numberOfLines={4}
-              maxLength={200}
-            />
-            <Text style={styles.charCount}>{bio.length}/200</Text>
+              <View style={styles.form}>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Username *</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={username}
+                    onChangeText={setUsername}
+                    placeholder="Enter username"
+                    autoCapitalize="none"
+                    maxLength={30}
+                    returnKeyType="next"
+                  />
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Bio</Text>
+                  <TextInput
+                    style={[styles.input, styles.textArea]}
+                    value={bio}
+                    onChangeText={setBio}
+                    placeholder="Tell us about yourself..."
+                    multiline
+                    numberOfLines={4}
+                    maxLength={200}
+                    textAlignVertical="top"
+                    returnKeyType="done"
+                  />
+                  <Text style={styles.charCount}>{bio.length}/200</Text>
+                </View>
+              </View>
+            </ScrollView>
           </View>
-        </View>
-      </ScrollView>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -273,6 +295,9 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontSize: 12,
     color: '#666',
+  },
+  scrollContent: {
+    padding: 16,
   },
 });
 

@@ -9,6 +9,11 @@ import {
   StyleSheet,
   SafeAreaView,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
@@ -157,123 +162,153 @@ const TrackDetailScreen = ({ route, navigation }: any) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Track</Text>
-        <View style={{ width: 24 }} />
-      </View>
-
-      <View style={styles.trackInfo}>
-        {track.cover_image_url && (
-          <Image source={{ uri: track.cover_image_url }} style={styles.coverArt} />
-        )}
-        
-        <View style={styles.trackDetails}>
-          <Text style={styles.title}>{track.title}</Text>
-          <TouchableOpacity
-            onPress={() => navigation.navigate('UserProfile', { userId: track.user_id })}
-          >
-            <Text style={styles.artist}>{track.user?.username}</Text>
-          </TouchableOpacity>
-          
-          {track.description && (
-            <Text style={styles.description}>{track.description}</Text>
-          )}
-          
-          {track.tags && Array.isArray(track.tags) && track.tags.length > 0 && (
-            <View style={styles.tags}>
-              {track.tags.map((tag: string, index: number) => (
-                <Text key={index} style={styles.tag}>
-                  #{tag}
-                </Text>
-              ))}
+      <KeyboardAvoidingView 
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View style={styles.container}>
+            <View style={styles.header}>
+              <TouchableOpacity onPress={() => navigation.goBack()}>
+                <Ionicons name="arrow-back" size={24} color="#333" />
+              </TouchableOpacity>
+              <Text style={styles.headerTitle}>Track</Text>
+              <View style={{ width: 24 }} />
             </View>
-          )}
-        </View>
-      </View>
 
-      <View style={styles.player}>
-        <TouchableOpacity style={styles.playButton} onPress={handlePlayPause}>
-          <Ionicons
-            name={isCurrentTrack && isPlaying ? 'pause' : 'play'}
-            size={32}
-            color="#fff"
-          />
-        </TouchableOpacity>
-        
-        <View style={styles.timeInfo}>
-          <Text style={styles.timeText}>
-            {formatTime(position)} / {formatTime(duration)}
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.actions}>
-        <TouchableOpacity style={styles.actionButton} onPress={handleLike}>
-          <Ionicons
-            name={track.is_liked ? 'heart' : 'heart-outline'}
-            size={24}
-            color={track.is_liked ? '#FF3B30' : '#8E8E93'}
-          />
-          <Text style={[styles.actionText, track.is_liked && styles.actionTextActive]}>
-            {formatCount(track.like_count)}
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.actionButton} onPress={handleRepost}>
-          <Ionicons
-            name={track.is_reposted ? 'repeat' : 'repeat-outline'}
-            size={24}
-            color={track.is_reposted ? '#34C759' : '#8E8E93'}
-          />
-          <Text style={[styles.actionText, track.is_reposted && styles.actionTextActive]}>
-            {formatCount(track.repost_count)}
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() => {
-            setCommentsVisible(true);
-            if (!commentsVisible) loadComments();
-          }}
-        >
-          <Ionicons name="chatbubble-outline" size={24} color="#8E8E93" />
-          <Text style={styles.actionText}>{formatCount(track.comment_count)}</Text>
-        </TouchableOpacity>
-      </View>
-
-      {commentsVisible && (
-        <View style={styles.commentsSection}>
-          <View style={styles.commentInput}>
-            <TextInput
-              style={styles.textInput}
-              value={newComment}
-              onChangeText={setNewComment}
-              placeholder="Add a comment..."
-              multiline
-            />
-            <TouchableOpacity
-              style={[styles.sendButton, !newComment.trim() && styles.sendButtonDisabled]}
-              onPress={handleAddComment}
-              disabled={!newComment.trim()}
+            <ScrollView 
+              style={styles.content}
+              contentContainerStyle={styles.scrollContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
             >
-              <Ionicons name="send" size={20} color="#007AFF" />
-            </TouchableOpacity>
-          </View>
+              <View style={styles.trackContainer}>
+                <Image source={{ uri: track.cover_image_url }} style={styles.coverArt} />
 
-          <FlatList
-            data={comments}
-            keyExtractor={(item) => item.id}
-            renderItem={renderComment}
-            refreshing={loading}
-            onRefresh={loadComments}
-            style={styles.commentsList}
-          />
-        </View>
-      )}
+                <View style={styles.trackInfo}>
+                  <Text style={styles.title}>{track.title}</Text>
+                  <Text style={styles.artist}>{track.user?.username}</Text>
+                  {track.description && (
+                    <Text style={styles.description}>{track.description}</Text>
+                  )}
+                  {track.tags && Array.isArray(track.tags) && track.tags.length > 0 && (
+                    <View style={styles.tags}>
+                      {track.tags.map((tag, index) => (
+                        <Text key={index} style={styles.tag}>
+                          #{tag}
+                        </Text>
+                      ))}
+                    </View>
+                  )}
+                </View>
+
+                <View style={styles.playButtonContainer}>
+                  <TouchableOpacity style={styles.playButton} onPress={handlePlayPause}>
+                    <Ionicons
+                      name={isCurrentTrack && isPlaying ? 'pause' : 'play'}
+                      size={32}
+                      color="#fff"
+                    />
+                  </TouchableOpacity>
+                </View>
+
+                {isCurrentTrack && (
+                  <View style={styles.progressContainer}>
+                    <View style={styles.progressBar}>
+                      <View
+                        style={[
+                          styles.progressFill,
+                          { width: `${((position || 0) / (duration || 1)) * 100}%` },
+                        ]}
+                      />
+                    </View>
+                    <View style={styles.timeContainer}>
+                      <Text style={styles.timeText}>
+                        {formatTime(position || 0)}
+                      </Text>
+                      <Text style={styles.timeText}>
+                        {formatTime(duration || 0)}
+                      </Text>
+                    </View>
+                  </View>
+                )}
+
+                <View style={styles.actions}>
+                  <TouchableOpacity style={styles.actionButton} onPress={handleLike}>
+                    <Ionicons
+                      name={track.is_liked ? 'heart' : 'heart-outline'}
+                      size={24}
+                      color={track.is_liked ? '#FF3B30' : '#8E8E93'}
+                    />
+                    <Text style={[styles.actionText, track.is_liked && styles.actionTextActive]}>
+                      {formatCount(track.like_count)}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity style={styles.actionButton} onPress={handleRepost}>
+                    <Ionicons
+                      name={track.is_reposted ? 'repeat' : 'repeat-outline'}
+                      size={24}
+                      color={track.is_reposted ? '#34C759' : '#8E8E93'}
+                    />
+                    <Text style={[styles.actionText, track.is_reposted && styles.actionTextActive]}>
+                      {formatCount(track.repost_count)}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={() => {
+                      setCommentsVisible(true);
+                      if (!commentsVisible) loadComments();
+                    }}
+                  >
+                    <Ionicons name="chatbubble-outline" size={24} color="#8E8E93" />
+                    <Text style={styles.actionText}>{formatCount(track.comment_count)}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {commentsVisible && (
+                <View style={styles.commentsSection}>
+                  <View style={styles.commentInput}>
+                    <TextInput
+                      style={styles.textInput}
+                      value={newComment}
+                      onChangeText={setNewComment}
+                      placeholder="Add a comment..."
+                      multiline
+                      maxLength={500}
+                      returnKeyType="send"
+                      onSubmitEditing={handleAddComment}
+                      blurOnSubmit={false}
+                    />
+                    <TouchableOpacity
+                      style={[styles.sendButton, !newComment.trim() && styles.sendButtonDisabled]}
+                      onPress={handleAddComment}
+                      disabled={!newComment.trim()}
+                    >
+                      <Ionicons name="send" size={20} color="#007AFF" />
+                    </TouchableOpacity>
+                  </View>
+
+                  <FlatList
+                    data={comments}
+                    keyExtractor={(item) => item.id}
+                    renderItem={renderComment}
+                    refreshing={loading}
+                    onRefresh={loadComments}
+                    style={styles.commentsList}
+                    keyboardShouldPersistTaps="handled"
+                    scrollEnabled={false}
+                  />
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -283,6 +318,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -291,37 +331,36 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
+    backgroundColor: '#fff',
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#333',
   },
-  loadingContainer: {
+  content: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
-  trackInfo: {
+  scrollContent: {
+    flexGrow: 1,
+  },
+  trackContainer: {
     padding: 16,
-    alignItems: 'center',
   },
   coverArt: {
-    width: 200,
-    height: 200,
+    width: '100%',
+    aspectRatio: 1,
     borderRadius: 12,
     marginBottom: 16,
     backgroundColor: '#f0f0f0',
   },
-  trackDetails: {
-    alignItems: 'center',
-    width: '100%',
+  trackInfo: {
+    marginBottom: 16,
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#333',
-    textAlign: 'center',
     marginBottom: 8,
   },
   artist: {
@@ -332,29 +371,26 @@ const styles = StyleSheet.create({
   description: {
     fontSize: 16,
     color: '#666',
-    textAlign: 'center',
+    lineHeight: 22,
     marginBottom: 12,
-    paddingHorizontal: 16,
   },
   tags: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'center',
   },
   tag: {
     fontSize: 14,
     color: '#007AFF',
-    marginHorizontal: 4,
+    backgroundColor: '#f0f8ff',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginRight: 8,
     marginBottom: 4,
   },
-  player: {
-    flexDirection: 'row',
+  playButtonContainer: {
     alignItems: 'center',
-    justifyContent: 'center',
     paddingVertical: 16,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: '#e0e0e0',
   },
   playButton: {
     width: 64,
@@ -363,21 +399,42 @@ const styles = StyleSheet.create({
     backgroundColor: '#007AFF',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
   },
-  timeInfo: {
-    flex: 1,
+  progressContainer: {
+    paddingVertical: 16,
+  },
+  progressBar: {
+    height: 4,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 2,
+    marginBottom: 8,
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#007AFF',
+    borderRadius: 2,
+  },
+  timeContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
   timeText: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#666',
   },
   actions: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     paddingVertical: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: '#f0f0f0',
   },
   actionButton: {
     alignItems: 'center',
@@ -394,6 +451,7 @@ const styles = StyleSheet.create({
   },
   commentsSection: {
     flex: 1,
+    minHeight: 300,
   },
   commentInput: {
     flexDirection: 'row',
@@ -402,6 +460,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
+    backgroundColor: '#fff',
   },
   textInput: {
     flex: 1,
@@ -412,15 +471,20 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     maxHeight: 100,
     marginRight: 8,
+    fontSize: 16,
+    backgroundColor: '#f9f9f9',
   },
   sendButton: {
     padding: 8,
+    borderRadius: 20,
+    backgroundColor: '#f0f8ff',
   },
   sendButtonDisabled: {
     opacity: 0.5,
   },
   commentsList: {
     flex: 1,
+    backgroundColor: '#fff',
   },
   commentItem: {
     flexDirection: 'row',
@@ -434,6 +498,7 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 16,
     marginRight: 12,
+    backgroundColor: '#f0f0f0',
   },
   commentContent: {
     flex: 1,
@@ -447,6 +512,7 @@ const styles = StyleSheet.create({
   commentText: {
     fontSize: 14,
     color: '#666',
+    lineHeight: 20,
   },
 });
 

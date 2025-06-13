@@ -17,10 +17,13 @@
     ],
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.ddwyer77.dancloud",
+      "buildNumber": "1",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "This app needs access to microphone to record audio tracks.",
         "NSCameraUsageDescription": "This app needs access to camera to take profile photos and cover art.",
-        "NSPhotoLibraryUsageDescription": "This app needs access to photo library to select profile photos and cover art."
+        "NSPhotoLibraryUsageDescription": "This app needs access to photo library to select profile photos and cover art.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -37,6 +40,11 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "c7566303-5470-4e09-8e3a-94d8392d4815"
+      }
     }
   }
 }

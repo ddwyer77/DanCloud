@@ -1,0 +1,301 @@
+# DanCloud - Music Sharing App - Complete Technical Summary
+
+## 🎵 App Overview
+**DanCloud** is a React Native music sharing app built with Expo, similar to SoundCloud. Users can upload, discover, and share music tracks with a social community. The app features audio streaming, social interactions (likes, comments, follows), and a modern mobile-first design.
+
+**Version**: 1.0.0  
+**Platform**: iOS/Android (React Native + Expo)  
+**Backend**: Supabase (PostgreSQL + Authentication + Storage)
+
+---
+
+## 🏗️ Architecture & Tech Stack
+
+### **Frontend**
+- **Framework**: React Native 0.79.3 with Expo ~53.0.11
+- **Language**: TypeScript
+- **Navigation**: React Navigation v7 (Stack + Bottom Tabs)
+- **State Management**: React Context (AuthContext, AudioPlayerContext)
+- **UI**: React Native Elements + Custom Components
+- **Audio**: expo-av (currently), migrating to expo-audio
+- **Images**: expo-image for optimized image handling
+
+### **Backend (Supabase)**
+- **Database**: PostgreSQL with Row Level Security (RLS)
+- **Authentication**: Supabase Auth (email/password)
+- **Storage**: Two buckets - `audio` (50MB limit) and `images` (10MB limit)
+- **Real-time**: Enabled for notifications and comments
+
+### **Key Dependencies**
+```json
+{
+  "@react-navigation/bottom-tabs": "^7.3.14",
+  "@react-navigation/stack": "^7.3.3",
+  "@supabase/supabase-js": "^2.50.0",
+  "expo-av": "^15.1.6",
+  "expo-audio": "^0.4.6",
+  "expo-image": "^2.3.0",
+  "react-native-elements": "^3.4.3"
+}
+```
+
+---
+
+## 📱 App Structure & Navigation
+
+### **Authentication Flow**
+- **UnauthenticatedNavigator**: Login → Register → ForgotPassword
+- **AuthenticatedNavigator**: Main App with bottom tabs + stack screens
+
+### **Main Navigation (Bottom Tabs)**
+1. **Feed** - Discover tracks from followed users
+2. **Upload** - Upload new music tracks
+3. **Notifications** - Social notifications (likes, comments, follows)
+4. **Profile** - User's own profile and settings
+
+### **Stack Screens**
+- **TrackDetail** - Individual track view with comments
+- **UserProfile** - Other user profiles
+- **EditProfile** - Edit current user profile  
+- **FollowersList** - View followers/following lists
+
+---
+
+## 🗃️ Database Schema
+
+### **Core Tables**
+1. **users** - User profiles and metadata
+   - `id` (UUID), `email`, `username`, `display_name`, `bio`, `avatar_url`
+   - Counters: `followers_count`, `following_count`, `tracks_count`
+
+2. **tracks** - Music tracks and metadata
+   - `id` (UUID), `user_id`, `title`, `description`, `audio_url`, `cover_image_url`
+   - Audio: `duration` (seconds), `genre`, `tags[]`
+   - Counters: `plays_count`, `likes_count`, `reposts_count`, `comments_count`
+
+3. **Social Tables**
+   - **follows**: `follower_id` → `following_id` relationships
+   - **likes**: User likes on tracks
+   - **reposts**: User reposts of tracks  
+   - **comments**: User comments on tracks
+
+4. **notifications** - System notifications
+   - Types: 'like', 'comment', 'follow', 'repost'
+   - Links to `related_user_id` and `related_track_id`
+
+### **Storage Buckets**
+- **audio**: Music files (MP3, WAV, MP4, OGG) - 50MB limit
+- **images**: Profile pictures, cover art (JPEG, PNG, WebP, GIF) - 10MB limit
+
+---
+
+## 🎨 UI Components & Screens
+
+### **Reusable Components**
+- **BottomAudioPlayer** - Global audio player with controls
+- **TrackCard** - Track display component for lists
+- **Custom styled components** throughout the app
+
+### **Screen Details**
+
+#### **Authentication Screens** ✅ **Keyboard Optimized**
+- **LoginScreen** - Email/password login with forgot password link
+- **RegisterScreen** - User registration with username validation
+- **ForgotPasswordScreen** - Password reset functionality
+- All have `KeyboardAvoidingView` + `TouchableWithoutFeedback` for keyboard dismissal
+
+#### **Main Screens** ✅ **Keyboard Optimized**
+- **FeedScreen** - Scrollable feed of tracks from followed users
+- **UploadScreen** - Multi-step track upload (audio file, cover art, metadata, tags)
+- **NotificationsScreen** - List of user notifications
+- **ProfileScreen** - Current user's profile with tracks list
+
+#### **Detail Screens** ✅ **Keyboard Optimized** 
+- **TrackDetailScreen** - Full track view with comments section
+- **UserProfileScreen** - Other user profiles with follow/unfollow
+- **EditProfileScreen** - Edit profile info and avatar
+- **FollowersListScreen** - View followers/following lists
+
+### **Recent Keyboard UX Improvements** ✅
+All screens with text input now include:
+- `KeyboardAvoidingView` for layout adjustment
+- `TouchableWithoutFeedback` for tap-to-dismiss keyboard
+- `ScrollView` with `keyboardShouldPersistTaps="handled"`
+- Proper spacing and responsive design
+
+---
+
+## 🎵 Audio Features
+
+### **Audio Player System**
+- **Global Player**: `BottomAudioPlayer` component with play/pause/scrub
+- **Context**: `AudioPlayerContext` manages playback state across screens
+- **Library**: Currently using `expo-av`, migrating to `expo-audio`
+
+### **Audio Capabilities**
+- **Streaming**: Play tracks directly from Supabase storage URLs
+- **Controls**: Play, pause, seek, volume control
+- **Metadata**: Duration, current time, track info display
+- **Background Play**: Continues playing when app is backgrounded
+
+### **Upload System**
+- **File Types**: MP3, WAV, MP4, OGG
+- **Validation**: File size (50MB max), format validation
+- **Processing**: Upload to Supabase storage, metadata extraction
+- **UI**: Progress indicators, error handling
+
+---
+
+## 🔐 Authentication & Security
+
+### **Authentication Flow**
+- **Provider**: Supabase Auth with email/password
+- **Context**: `AuthContext` manages user state globally
+- **Persistence**: Sessions persist across app restarts
+- **Validation**: Real-time form validation and error handling
+
+### **Security Features**
+- **Row Level Security (RLS)**: Database-level access control
+- **File Access**: Users can only modify their own content
+- **Input Validation**: Client and server-side validation
+- **Secure Storage**: AsyncStorage for token persistence
+
+### **Recent RLS Fixes** ✅
+- **Comments system**: Fixed UUID type casting issues in RLS policies
+- **Working policies**: Authenticated users can comment, users own their content
+- **Proper casting**: `auth.uid()::text = user_id::text` for ownership checks
+
+---
+
+## 🚀 Recent Development & Bug Fixes
+
+### **Major Recent Improvements**
+1. **Comments System Fixed** ✅
+   - Resolved RLS policy issues preventing comment submission
+   - Fixed UUID type casting problems
+   - Comments now work reliably across the app
+
+2. **Keyboard UX Overhaul** ✅  
+   - Added keyboard handling to all input screens
+   - Implemented swipe-to-dismiss functionality
+   - Fixed submit button obstruction issues
+   - Enhanced user experience across all forms
+
+3. **Audio System Migration** 🔄
+   - Migrating from deprecated `expo-av` to `expo-audio`
+   - Improved audio playback reliability
+   - Better error handling and performance
+
+### **Known Issues & Technical Debt**
+1. **Profile Image Upload** ⚠️
+   - Images upload successfully but may appear as empty files
+   - Issue tracked in `profile_picture_bug_report.txt`
+   - Affects user avatar display
+
+2. **Audio Migration** 🔄
+   - Still using deprecated `expo-av` in some places
+   - Need to complete migration to `expo-audio`
+
+---
+
+## 📁 Project Structure
+
+```
+DanCloud/
+├── src/
+│   ├── components/          # Reusable UI components
+│   │   ├── BottomAudioPlayer.tsx
+│   │   └── TrackCard.tsx
+│   ├── contexts/           # React contexts
+│   │   ├── AuthContext.tsx
+│   │   └── AudioPlayerContext.tsx
+│   ├── screens/           # App screens
+│   │   ├── auth/          # Authentication screens
+│   │   ├── FeedScreen.tsx
+│   │   ├── UploadScreen.tsx
+│   │   ├── TrackDetailScreen.tsx
+│   │   └── [other screens]
+│   ├── services/          # API services
+│   │   └── supabase integration
+│   └── types/             # TypeScript definitions
+├── supabase/              # Database migrations
+├── assets/                # App icons and images
+├── app.json              # Expo configuration
+└── package.json          # Dependencies
+```
+
+---
+
+## 🛠️ Development Setup
+
+### **Environment Variables**
+```env
+EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+```
+
+### **Key Commands**
+```bash
+npx expo start          # Start development server
+npx expo start --ios    # iOS simulator
+npx expo start --android # Android simulator
+```
+
+### **Database Migrations**
+- Located in `supabase/migrations/`
+- Latest: `20250113000006_re_enable_comments_rls_fixed_types.sql`
+- Schema documented in `supabase-schema-clean.sql`
+
+---
+
+## 🎯 Next Development Priorities
+
+### **UI/UX Improvements Needed**
+1. **Design System**: Establish consistent colors, typography, spacing
+2. **Dark Mode**: Implement dark/light theme switching
+3. **Responsive Design**: Better tablet and large screen support
+4. **Animations**: Add smooth transitions and micro-interactions
+5. **Accessibility**: Screen reader support, better contrast
+6. **Loading States**: Skeleton screens, better loading indicators
+
+### **Feature Enhancements**
+1. **Search**: Search tracks, users, genres
+2. **Playlists**: User-created playlists
+3. **Social Features**: Direct messaging, track sharing
+4. **Discovery**: Trending tracks, genre-based browsing
+5. **Audio Quality**: Multiple quality options
+6. **Offline Mode**: Download tracks for offline listening
+
+### **Technical Improvements**
+1. **Performance**: Image optimization, lazy loading
+2. **Error Handling**: Better error boundaries and retry mechanisms  
+3. **Testing**: Unit tests, integration tests
+4. **CI/CD**: Automated building and deployment
+5. **Analytics**: User behavior tracking
+6. **Push Notifications**: Real-time notification delivery
+
+---
+
+## 💡 Important Context for Development
+
+### **Code Quality Standards**
+- **TypeScript**: Strict typing throughout
+- **Component Structure**: Functional components with hooks
+- **Error Handling**: Comprehensive try/catch with user feedback
+- **Performance**: Optimized re-renders, proper key props
+
+### **User Experience Philosophy**
+- **Mobile-First**: Designed for mobile interaction patterns
+- **Intuitive Navigation**: Clear hierarchy and navigation flows
+- **Responsive Feedback**: Loading states, success/error messages
+- **Accessibility**: Keyboard navigation, screen reader support
+
+### **Technical Constraints**
+- **File Limits**: 50MB audio, 10MB images
+- **Platform**: React Native limitations and capabilities
+- **Backend**: Supabase feature set and pricing tiers
+- **App Store**: Compliance with iOS/Android guidelines
+
+---
+
+This summary provides a complete technical overview of the DanCloud app as of January 2025. The app is in a working state with core functionality complete, keyboard UX optimized, and comments system functioning properly. The next phase of development should focus on UI/UX improvements, additional features, and performance optimizations. 
