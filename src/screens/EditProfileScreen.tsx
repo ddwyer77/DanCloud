@@ -24,6 +24,9 @@ const EditProfileScreen = ({ navigation }: any) => {
 
   const pickImage = async () => {
     try {
+      console.log('=== IMAGE PICKER DEBUG ===');
+      console.log('Starting image picker...');
+      
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -31,14 +34,23 @@ const EditProfileScreen = ({ navigation }: any) => {
         quality: 0.8,
       });
 
+      console.log('Image picker result:', result);
+
       if (!result.canceled && result.assets[0]) {
-        setProfileImage({
+        const selectedImage = {
           uri: result.assets[0].uri,
           name: 'profile_image.jpg',
           type: 'image/jpeg',
-        });
+        };
+        console.log('Selected image object:', selectedImage);
+        setProfileImage(selectedImage);
+        console.log('Profile image state updated');
+      } else {
+        console.log('Image picker was canceled or no image selected');
       }
+      console.log('=== END IMAGE PICKER DEBUG ===');
     } catch (error) {
+      console.error('Image picker error:', error);
       Alert.alert('Error', 'Failed to pick image');
     }
   };
@@ -60,10 +72,25 @@ const EditProfileScreen = ({ navigation }: any) => {
     try {
       let profileImageUrl = user.profile_image_url;
 
+      console.log('=== HANDLE SAVE DEBUG ===');
+      console.log('Current user profile_image_url:', user.profile_image_url);
+      console.log('Selected profileImage:', profileImage);
+      console.log('Will upload new image:', !!profileImage);
+
       // Upload new profile image if selected
       if (profileImage) {
+        console.log('Starting profile image upload...');
         profileImageUrl = await userService.uploadProfileImage(user.id, profileImage);
+        console.log('=== PROFILE UPDATE DEBUG ===');
+        console.log('New profile image URL:', profileImageUrl);
+        console.log('=== END PROFILE UPDATE DEBUG ===');
       }
+
+      console.log('Updating profile with data:', {
+        username: username.trim(),
+        bio: bio.trim() || undefined,
+        profile_image_url: profileImageUrl,
+      });
 
       // Update profile
       await updateProfile({
@@ -71,6 +98,9 @@ const EditProfileScreen = ({ navigation }: any) => {
         bio: bio.trim() || undefined,
         profile_image_url: profileImageUrl,
       });
+
+      console.log('Profile updated with URL:', profileImageUrl);
+      console.log('=== END HANDLE SAVE DEBUG ===');
 
       Alert.alert('Success', 'Profile updated successfully!', [
         { text: 'OK', onPress: () => navigation.goBack() },

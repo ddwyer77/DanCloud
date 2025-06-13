@@ -41,23 +41,60 @@ export const userService = {
 
   // Upload profile image
   async uploadProfileImage(userId: string, imageFile: any): Promise<string> {
-    const fileExt = imageFile.name.split('.').pop();
-    const fileName = `${userId}-${Date.now()}.${fileExt}`;
-    const filePath = `profile-images/${fileName}`;
+    try {
+      const fileExt = imageFile.name.split('.').pop();
+      const fileName = `${userId}-${Date.now()}.${fileExt}`;
+      const filePath = `profile-images/${fileName}`;
 
-    // Upload image to Supabase Storage
-    const { error: uploadError } = await supabase.storage
-      .from('images')
-      .upload(filePath, imageFile);
+      console.log('=== PROFILE IMAGE UPLOAD DEBUG ===');
+      console.log('Image file URI:', imageFile.uri);
+      console.log('Image file name:', imageFile.name);
+      console.log('Image file type:', imageFile.type);
 
-    if (uploadError) throw new Error(uploadError.message);
+      // Use the same approach as working audio upload - pass file object directly
+      // Supabase's React Native client can handle file URIs properly
+      let imageFileObject: any;
+      
+      try {
+        // For React Native with Supabase, we can pass the file object directly
+        // Supabase's React Native client can handle file URIs
+        imageFileObject = {
+          uri: imageFile.uri,
+          type: imageFile.type || 'image/jpeg',
+          name: imageFile.name || fileName,
+        };
+        
+        console.log('Using file object for upload (same as audio):', imageFileObject);
+        
+      } catch (error) {
+        console.error('Failed to prepare image file:', error);
+        throw new Error('Failed to prepare the selected image file for upload. Please try selecting the file again.');
+      }
 
-    // Get public URL
-    const { data } = supabase.storage
-      .from('images')
-      .getPublicUrl(filePath);
+      // Upload image to Supabase Storage using file object directly
+      const { data, error: uploadError } = await supabase.storage
+        .from('images')
+        .upload(filePath, imageFileObject, {
+          contentType: imageFile.type || 'image/jpeg',
+          upsert: true, // Allow overwriting existing files
+        });
 
-    return data.publicUrl;
+      console.log('Supabase upload response:', { data, error: uploadError });
+      console.log('=== END PROFILE IMAGE UPLOAD DEBUG ===');
+
+      if (uploadError) throw new Error(uploadError.message);
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('images')
+        .getPublicUrl(filePath);
+
+      console.log('Generated public URL:', urlData.publicUrl);
+      return urlData.publicUrl;
+    } catch (error) {
+      console.error('Profile image upload error:', error);
+      throw error;
+    }
   },
 
   // Follow user

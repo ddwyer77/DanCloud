@@ -96,10 +96,19 @@ const ProfileScreen = ({ navigation }: any) => {
     <View style={styles.profileHeader}>
       <View style={styles.profileInfo}>
         <Image
+          key={user?.profile_image_url}
           source={{
             uri: user?.profile_image_url || 'https://via.placeholder.com/120',
           }}
           style={styles.profileImage}
+          onError={(error) => {
+            console.log('Profile image load error:', error);
+            console.log('Attempted URL:', user?.profile_image_url);
+          }}
+          onLoad={() => {
+            console.log('Profile image loaded successfully');
+            console.log('Current profile image URL:', user?.profile_image_url);
+          }}
         />
         <Text style={styles.username}>{user?.username}</Text>
         {user?.bio && <Text style={styles.bio}>{user.bio}</Text>}
