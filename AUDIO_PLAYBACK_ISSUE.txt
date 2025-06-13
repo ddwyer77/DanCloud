@@ -1,0 +1,152 @@
+AUDIO PLAYBACK ISSUE - DANCLOUD MUSIC STREAMING APP
+=====================================================
+
+## APP OVERVIEW
+I'm building a music streaming app called "DanCloud" using:
+- Frontend: React Native with Expo
+- Backend: Supabase (PostgreSQL + Storage)
+- Audio: expo-av library (deprecated, but currently in use)
+- Navigation: React Navigation with bottom tabs
+- Architecture: Context-based state management for audio player
+
+## CURRENT PROBLEM
+**Audio files won't play - they upload successfully but have 0 bytes of data**
+
+## TECHNICAL DETAILS
+
+### App Structure:
+```
+App.tsx
+├── AuthProvider
+├── NavigationContainer
+    └── AudioPlayerProvider
+        └── AppNavigator (Feed, Upload, Notifications, Profile tabs)
+```
+
+### Key Components:
+1. AudioPlayerContext (src/contexts/AudioPlayerContext.tsx) - Manages audio playback state
+2. TrackService (src/services/trackService.ts) - Handles file uploads to Supabase storage
+3. UploadScreen (src/screens/UploadScreen.tsx) - File selection with DocumentPicker
+4. TrackDetailScreen - Where play button is pressed
+
+## DEBUGGING RESULTS
+
+### Upload Process (Working):
+- Files are selected correctly via DocumentPicker
+- Upload to Supabase storage succeeds
+- Database records are created properly
+- URLs are generated correctly
+
+### Audio Playback (Failing):
+```
+LOG  === AUDIO PLAYBACK DEBUG ===
+LOG  Track title: only hearsay
+LOG  Track URL: https://wwwqwfbygmuiwkwqsajb.supabase.co/storage/v1/object/public/audio/tracks/d41c9925-6479-4941-820e-1386bdcb308a-1749792488743.mp3
+LOG  URL test response status: 200
+LOG  URL test response headers: {"content-length": "0", "content-type": "audio/mpeg"}
+ERROR Sound creation timeout
+```
+
+### Root Cause Identified:
+- Audio URLs are accessible (200 status)
+- BUT files have "content-length": "0" (empty files)
+- Audio.Sound.createAsync() times out because there's no audio data
+
+## UPLOAD CODE STRUCTURE
+```typescript
+// In trackService.ts
+const audioResponse = await fetch(trackData.audioFile.uri);
+const audioBlob = await audioResponse.blob();
+await supabase.storage.from('audio').upload(audioPath, audioBlob);
+```
+
+### File Selection Code:
+```typescript
+// In UploadScreen.tsx
+const result = await DocumentPicker.getDocumentAsync({
+  type: ['audio/mpeg', 'audio/wav', 'audio/mp3'],
+  copyToCacheDirectory: true,
+});
+```
+
+## WHAT WE NEED TO FIX
+1. **Why are audio files being uploaded as 0 bytes?** The upload process appears to work but results in empty files
+2. **Is the blob conversion failing?** The fetch → blob conversion might not be working properly
+3. **Are there permission issues?** File access might be restricted
+4. **Is DocumentPicker providing invalid URIs?** The selected file URIs might not be accessible
+
+## CURRENT STATUS
+- App functionality is otherwise complete (auth, database, UI all working)
+- Only audio playback is broken due to empty file uploads
+- Need to debug the upload process to ensure files contain actual audio data
+- May need to switch from expo-av to expo-audio (as expo-av is deprecated)
+
+## FILES TO FOCUS ON
+- src/services/trackService.ts (upload logic)
+- src/contexts/AudioPlayerContext.tsx (playback logic)  
+- src/screens/UploadScreen.tsx (file selection)
+
+## EXPECTED OUTCOME
+Users should be able to upload MP3 files and play them back with audio controls working properly.
+
+## RECENT DEBUGGING LOGS
+```
+iOS Bundled 5471ms index.ts (1191 modules)
+WARN  [expo-av]: Expo AV has been deprecated and will be removed in SDK 54. Use the `expo-audio` and `expo-video` packages to replace the required functionality.
+LOG  Auth state changed: INITIAL_SESSION undefined
+LOG  Attempting to sign in with email: ddwyer77@gmail.com
+LOG  Auth state changed: SIGNED_IN d41c9925-6479-4941-820e-1386bdcb308a
+LOG  Fetching user profile for ID: d41c9925-6479-4941-820e-1386bdcb308a
+LOG  User profile fetched successfully: {"avatar_url": null, "bio": null, "created_at": "2025-06-13T04:49:00.347763+00:00", "display_name": null, "email": "ddwyer77@gmail.com", "followers_count": 0, "following_count": 0, "id": "d41c9925-6479-4941-820e-1386bdcb308a", "profile_image_url": null, "tracks_count": 0, "updated_at": "2025-06-13T04:49:00.347763+00:00", "username": "moneymaker"}
+LOG  Sign in successful
+LOG  === AUDIO PLAYBACK DEBUG ===
+LOG  Track title: only hearsay
+LOG  Track URL: https://wwwqwfbygmuiwkwqsajb.supabase.co/storage/v1/object/public/audio/tracks/d41c9925-6479-4941-820e-1386bdcb308a-1749792488743.mp3
+LOG  URL type: string
+LOG  URL length: 133
+LOG  Testing URL accessibility...
+LOG  URL test response status: 200
+LOG  URL test response headers: {"accept-ranges": "bytes", "access-control-allow-origin": "*", "alt-svc": "h3=\":443\"; ma=86400", "cache-control": "max-age=3600", "cf-cache-status": "MISS", "cf-ray": "94ef525e2afbf644-LAX", "content-length": "0", "content-type": "audio/mpeg", "date": "Fri, 13 Jun 2025 05:52:25 GMT", "etag": "\"d41d8cd98f00b204e9800998ecf8427e\"", "last-modified": "Fri, 13 Jun 2025 05:28:09 GMT", "priority": "u=3,i", "sb-gateway-mode": "direct", "sb-gateway-version": "1", "sb-project-ref": "wwwqwfbygmuiwkwqsajb", "server": "cloudflare", "server-timing": "cfExtPri", "set-cookie": "__cf_bm=FQJwqeEjYwAPz5RIrSTrjE1icvzzchMEjYa4woSI3mI-1749793945-1.0.1.1-Mb.CsTCyOTolkvw84qYIB9SgCWhtv2Kt3mrWHqC4KvtXszEwYKU4eQerYQxMIoQuS0ciFO.FwTJd_NIR_oIor9Hiyji9VGzRr21Z85323NY; path=/; expires=Fri, 13-Jun-25 06:22:25 GMT; domain=.supabase.co; HttpOnly; Secure; SameSite=None", "strict-transport-security": "max-age=31536000; includeSubDomains; preload", "vary": "Accept-Encoding"}
+LOG  Creating sound object...
+ERROR  === AUDIO ERROR ===
+ERROR  Error type: Error
+ERROR  Error message: Sound creation timeout
+ERROR  Full error: [Error: Sound creation timeout]
+ERROR  Track URL that failed: https://wwwqwfbygmuiwkwqsajb.supabase.co/storage/v1/object/public/audio/tracks/d41c9925-6479-4941-820e-1386bdcb308a-1749792488743.mp3
+ERROR  === END AUDIO ERROR ===
+```
+
+## KEY OBSERVATION
+The critical issue is in the response headers:
+- "content-length": "0" - This means the file is completely empty
+- "content-type": "audio/mpeg" - The file type is correct
+- Status 200 - The file exists and is accessible
+
+This confirms that files are being uploaded to Supabase storage but they contain no actual audio data (0 bytes).
+
+## NEXT STEPS NEEDED
+1. Add debugging to the upload process to see blob size before upload
+2. Test if DocumentPicker is providing valid file URIs
+3. Verify if the fetch() call on the local file URI is working
+4. Consider switching to expo-audio from deprecated expo-av
+5. Test with different audio file formats and sources
+
+## DEBUGGING CODE ADDED
+Upload debugging has been added to trackService.ts:
+```typescript
+console.log('=== UPLOAD DEBUG ===');
+console.log('Audio file URI:', trackData.audioFile.uri);
+console.log('Audio file name:', trackData.audioFile.name);
+console.log('Audio file type:', trackData.audioFile.type);
+
+const audioResponse = await fetch(trackData.audioFile.uri);
+console.log('Fetch response status:', audioResponse.status);
+console.log('Fetch response headers:', Object.fromEntries(audioResponse.headers.entries()));
+
+const audioBlob = await audioResponse.blob();
+console.log('Blob size:', audioBlob.size);
+console.log('Blob type:', audioBlob.type);
+console.log('=== END UPLOAD DEBUG ===');
+```
+
+This will help identify exactly where in the upload process the file data is being lost. 
