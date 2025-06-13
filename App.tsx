@@ -9,6 +9,9 @@ import { StatusBar } from 'expo-status-bar';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import { AudioPlayerProvider } from './src/contexts/AudioPlayerContext';
 
+// Import components
+import BottomAudioPlayer from './src/components/BottomAudioPlayer';
+
 // Import screens
 import FeedScreen from './src/screens/FeedScreen';
 import UploadScreen from './src/screens/UploadScreen';
@@ -124,6 +127,7 @@ export default function App() {
       <NavigationContainer>
         <AudioPlayerProvider>
           <AppNavigator />
+          <BottomAudioPlayer />
         </AudioPlayerProvider>
         <StatusBar style="auto" />
       </NavigationContainer>

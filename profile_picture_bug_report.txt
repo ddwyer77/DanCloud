@@ -1,0 +1,153 @@
+PROFILE PICTURE BUG REPORT - DanCloud Music App
+=====================================================
+
+## BUG SUMMARY
+Profile pictures are not displaying on the ProfileScreen despite successful upload to Supabase storage. Images are being uploaded as empty files (0 bytes) even though blob conversion shows correct file sizes locally.
+
+## CURRENT BEHAVIOR
+1. User can select profile image in EditProfileScreen ✅
+2. Image upload process completes without errors ✅
+3. Profile image URL is generated and saved to user profile ✅
+4. AuthContext updates user state with new profile_image_url ✅
+5. ProfileScreen attempts to display image but fails ❌
+6. No profile picture appears at top of profile page ❌
+
+## EXPECTED BEHAVIOR
+- Profile picture should display as 120x120 circular image at top of ProfileScreen
+- Should show uploaded image instead of placeholder
+
+## TECHNICAL DETAILS
+
+### Files Involved:
+- `src/screens/ProfileScreen.tsx` - Displays profile image (lines 96-109)
+- `src/screens/EditProfileScreen.tsx` - Handles image selection and save
+- `src/services/userService.ts` - uploadProfileImage method (lines 44-83)
+- `src/contexts/AuthContext.tsx` - updateProfile method updates user state
+
+### Current Implementation Status:
+✅ ProfileScreen has Image component with proper styling:
+```typescript
+<Image
+  key={user?.profile_image_url}
+  source={{ uri: user?.profile_image_url || 'https://via.placeholder.com/120' }}
+  style={styles.profileImage} // 120x120, borderRadius: 60
+  onError={(error) => console.log('Profile image load error:', error)}
+  onLoad={() => console.log('Profile image loaded successfully')}
+/>
+```
+
+✅ EditProfileScreen properly handles image selection and calls userService
+✅ AuthContext updateProfile method updates local user state correctly
+
+## CRITICAL ISSUE EVIDENCE
+
+### From Latest Logs:
+```
+Image blob size: 274135  ← LOCAL BLOB IS 274KB (GOOD)
+Supabase upload response: { data: {...}, error: null }  ← UPLOAD "SUCCEEDS"
+Generated public URL: https://wwwqwfbygmuiwkwqsajb.supabase.co/storage/v1/object/public/images/profile-images/...
+Profile updated with URL: https://... ← USER STATE UPDATED
+
+BUT WHEN IMAGE LOADS:
+"Content-Length": "0"  ← FILE IS EMPTY ON SUPABASE!
+"Content-Type": "image/jpeg"  ← CORRECT TYPE
+"error": "Unknown image download error"  ← FAILS TO DISPLAY
+```
+
+### The Problem:
+Despite blob conversion showing correct file size (274KB) locally, Supabase storage receives EMPTY FILES (0 bytes). This suggests an issue with the blob upload process to Supabase, not the display logic.
+
+## CURRENT uploadProfileImage METHOD (userService.ts lines 44-83):
+```typescript
+async uploadProfileImage(userId: string, imageFile: any): Promise<string> {
+  try {
+    const fileExt = imageFile.name.split('.').pop();
+    const fileName = `${userId}-${Date.now()}.${fileExt}`;
+    const filePath = `profile-images/${fileName}`;
+
+    // Convert image to blob
+    const imageResponse = await fetch(imageFile.uri);
+    const imageBlob = await imageResponse.blob();
+    
+    if (imageBlob.size === 0) {
+      throw new Error('Image blob is empty - fetch may have failed');
+    }
+
+    // Upload to Supabase Storage
+    const { data, error: uploadError } = await supabase.storage
+      .from('images')
+      .upload(filePath, imageBlob, {
+        contentType: imageBlob.type || imageFile.type || 'image/jpeg',
+        upsert: true,
+      });
+
+    if (uploadError) throw new Error(uploadError.message);
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from('images')
+      .getPublicUrl(filePath);
+
+    return urlData.publicUrl;
+  } catch (error) {
+    console.error('Profile image upload error:', error);
+    throw error;
+  }
+}
+```
+
+## DEBUGGING LOGS TO LOOK FOR:
+When testing, you should see these logs in sequence:
+1. `=== IMAGE PICKER DEBUG ===` - Image selection
+2. `=== HANDLE SAVE DEBUG ===` - Save process begins
+3. `=== PROFILE IMAGE UPLOAD DEBUG ===` - Upload process
+4. `Image blob size: [NUMBER]` - Should be > 0
+5. `Supabase upload response:` - Should show success
+6. `Profile updated with URL:` - URL saved to user
+7. `Profile image load error:` - Display fails due to empty file
+
+## SIMILAR WORKING IMPLEMENTATION:
+The audio upload in trackService.ts works correctly using similar blob conversion:
+```typescript
+// This works for audio files:
+const audioResponse = await fetch(audioFile.uri);
+const audioBlob = await audioResponse.blob();
+await supabase.storage.from('audio').upload(filePath, audioBlob, {
+  contentType: audioFile.type || 'audio/mpeg',
+});
+```
+
+## SUPABASE STORAGE SETUP:
+- Storage bucket: 'images'
+- File path pattern: 'profile-images/{userId}-{timestamp}.{ext}'
+- Public URL format: https://wwwqwfbygmuiwkwqsajb.supabase.co/storage/v1/object/public/images/...
+
+## DEPENDENCIES:
+- expo-image-picker: For image selection
+- @supabase/supabase-js: For storage upload
+- React Native Image component: For display
+
+## NEXT STEPS TO INVESTIGATE:
+1. Compare working audio upload vs broken image upload blob handling
+2. Check if Expo ImagePicker URIs need different fetch handling than audio files
+3. Investigate if Supabase storage upload options differ for images vs audio
+4. Test direct blob upload without intermediate processing
+5. Check if React Native's fetch implementation handles image URIs differently
+
+## TEST PROCEDURE:
+1. Go to Profile tab
+2. Tap "Edit Profile"
+3. Tap profile image to change
+4. Select new image from library
+5. Tap "Save"
+6. Check console logs for blob size and Supabase response
+7. Verify if image appears at top of profile page
+
+## CURRENT STATE:
+- App is functional except for profile picture display
+- All other features working (audio upload, track display, etc.)
+- Issue is specifically with image blob upload to Supabase storage
+- Local blob conversion appears to work correctly
+- Problem occurs during Supabase storage upload process
+
+The bug is isolated to the image upload mechanism - everything else in the profile system works correctly. 
