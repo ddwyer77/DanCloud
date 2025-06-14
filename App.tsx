@@ -24,6 +24,7 @@ import TrackDetailScreen from './src/screens/TrackDetailScreen';
 import UserProfileScreen from './src/screens/UserProfileScreen';
 import EditProfileScreen from './src/screens/EditProfileScreen';
 import FollowersListScreen from './src/screens/FollowersListScreen';
+import EditTrackScreen from './src/screens/EditTrackScreen';
 import LoadingScreen from './src/screens/LoadingScreen';
 
 const Tab = createBottomTabNavigator();
@@ -85,6 +86,11 @@ function AuthenticatedNavigator() {
         name="EditProfile" 
         component={EditProfileScreen}
         options={{ title: 'Edit Profile' }}
+      />
+      <Stack.Screen 
+        name="EditTrack" 
+        component={EditTrackScreen}
+        options={{ headerShown: false }}
       />
       <Stack.Screen 
         name="FollowersList" 

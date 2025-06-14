@@ -18,6 +18,8 @@ interface TrackCardProps {
   onLike?: () => void;
   onRepost?: () => void;
   onComment?: () => void;
+  onEdit?: () => void;
+  showEditButton?: boolean;
 }
 
 const TrackCard: React.FC<TrackCardProps> = ({
@@ -28,6 +30,8 @@ const TrackCard: React.FC<TrackCardProps> = ({
   onLike,
   onRepost,
   onComment,
+  onEdit,
+  showEditButton = false,
 }) => {
   const { currentTrack, isPlaying, playTrack, pauseTrack } = useAudioPlayer();
   const isCurrentTrack = currentTrack?.id === track.id;
@@ -70,6 +74,12 @@ const TrackCard: React.FC<TrackCardProps> = ({
           />
           <Text style={styles.username}>{track.user?.username || 'Unknown User'}</Text>
         </TouchableOpacity>
+        
+        {showEditButton && onEdit && (
+          <TouchableOpacity style={styles.editButton} onPress={onEdit}>
+            <Ionicons name="create-outline" size={20} color="#007AFF" />
+          </TouchableOpacity>
+        )}
       </View>
 
       <View style={styles.content}>
@@ -147,11 +157,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 12,
   },
   userInfo: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
   },
   avatar: {
     width: 40,
@@ -243,6 +257,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#34C759',
     marginLeft: 4,
+  },
+  editButton: {
+    padding: 8,
+    borderRadius: 16,
+    backgroundColor: '#f0f8ff',
   },
 });
 

@@ -127,6 +127,10 @@ const ProfileScreen = ({ navigation }: any) => {
     });
   };
 
+  const handleEditTrack = (track: Track) => {
+    navigation.navigate('EditTrack', { trackId: track.id });
+  };
+
   const renderTrack = ({ item }: { item: Track }) => (
     <View style={styles.trackContainer}>
       <TrackCard
@@ -137,6 +141,8 @@ const ProfileScreen = ({ navigation }: any) => {
         onLike={() => handleLike(item)}
         onRepost={() => handleRepost(item)}
         onComment={() => navigation.navigate('TrackDetail', { trackId: item.id, openComments: true })}
+        onEdit={() => handleEditTrack(item)}
+        showEditButton={true}
       />
       <TouchableOpacity
         style={styles.deleteButton}

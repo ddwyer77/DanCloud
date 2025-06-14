@@ -2,7 +2,7 @@
   "expo": {
     "name": "DanCloud",
     "slug": "dancloud",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -18,7 +18,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.ddwyer77.dancloud",
-      "buildNumber": "1",
+      "buildNumber": "2",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "This app needs access to microphone to record audio tracks.",
         "NSCameraUsageDescription": "This app needs access to camera to take profile photos and cover art.",

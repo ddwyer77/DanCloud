@@ -613,4 +613,54 @@ export const trackService = {
 
     if (error) throw new Error(error.message);
   },
+
+  // Update track details
+  async updateTrack(
+    trackId: string,
+    updates: {
+      title?: string;
+      description?: string | null;
+      tags?: string[];
+    }
+  ): Promise<Track> {
+    try {
+      const { data, error } = await supabase
+        .from('tracks')
+        .update({
+          title: updates.title,
+          description: updates.description,
+          tags: updates.tags,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', trackId)
+        .select(`
+          *,
+          user:users(id, username, profile_image_url),
+          likes:track_likes(user_id),
+          reposts:track_reposts(user_id),
+          comments:track_comments(count)
+        `)
+        .single();
+
+      if (error) {
+        console.error('Error updating track:', error);
+        throw new Error(error.message);
+      }
+
+      // Format the response to match Track type
+      const track: Track = {
+        ...data,
+        like_count: data.likes?.length || 0,
+        repost_count: data.reposts?.length || 0,
+        comment_count: data.comments?.length || 0,
+        is_liked: false,
+        is_reposted: false,
+      };
+
+      return track;
+    } catch (error: any) {
+      console.error('Error in updateTrack:', error);
+      throw new Error(error.message || 'Failed to update track');
+    }
+  },
 }; 

@@ -33,6 +33,9 @@ const TrackDetailScreen = ({ route, navigation }: any) => {
   const { user } = useAuth();
   const { currentTrack, isPlaying, playTrack, pauseTrack, position, duration } = useAudioPlayer();
 
+  const isCurrentTrack = currentTrack?.id === track?.id;
+  const isOwner = user && track && track.user_id === user.id;
+
   useEffect(() => {
     loadTrack();
     if (openComments) {
@@ -158,8 +161,6 @@ const TrackDetailScreen = ({ route, navigation }: any) => {
     );
   }
 
-  const isCurrentTrack = currentTrack?.id === track.id;
-
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView 
@@ -174,7 +175,13 @@ const TrackDetailScreen = ({ route, navigation }: any) => {
                 <Ionicons name="arrow-back" size={24} color="#333" />
               </TouchableOpacity>
               <Text style={styles.headerTitle}>Track</Text>
-              <View style={{ width: 24 }} />
+              {isOwner ? (
+                <TouchableOpacity onPress={() => navigation.navigate('EditTrack', { trackId: track.id })}>
+                  <Ionicons name="create-outline" size={24} color="#007AFF" />
+                </TouchableOpacity>
+              ) : (
+                <View style={{ width: 24 }} />
+              )}
             </View>
 
             <ScrollView 
