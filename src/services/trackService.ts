@@ -614,6 +614,93 @@ export const trackService = {
     if (error) throw new Error(error.message);
   },
 
+  // Update track details with optional cover image
+  async updateTrackWithCover(
+    trackId: string,
+    updates: {
+      title?: string;
+      description?: string | null;
+      tags?: string[];
+    },
+    coverImageFile?: { uri: string; name?: string; type?: string },
+    userId?: string
+  ): Promise<Track> {
+    try {
+      let coverImageUrl = null;
+
+      // Upload new cover image if provided
+      if (coverImageFile && userId) {
+        const coverFileName = `${userId}-${Date.now()}.jpg`;
+        const coverPath = `covers/${coverFileName}`;
+
+        const coverBlob = {
+          uri: coverImageFile.uri,
+          type: coverImageFile.type || 'image/jpeg',
+          name: coverImageFile.name || coverFileName,
+        };
+
+        const { error: coverError } = await supabase.storage
+          .from('images')
+          .upload(coverPath, coverBlob, {
+            contentType: coverImageFile.type || 'image/jpeg',
+          });
+
+        if (coverError) throw new Error(coverError.message);
+
+        const { data: coverUrl } = supabase.storage
+          .from('images')
+          .getPublicUrl(coverPath);
+
+        coverImageUrl = coverUrl.publicUrl;
+      }
+
+      // Update track with new data
+      const updateData: any = {
+        title: updates.title,
+        description: updates.description,
+        tags: updates.tags,
+        updated_at: new Date().toISOString(),
+      };
+
+      // Only update cover image if a new one was uploaded
+      if (coverImageUrl) {
+        updateData.cover_image_url = coverImageUrl;
+      }
+
+      const { data, error } = await supabase
+        .from('tracks')
+        .update(updateData)
+        .eq('id', trackId)
+        .select(`
+          *,
+          user:users(id, username, profile_image_url),
+          likes:likes(user_id),
+          reposts:reposts(user_id)
+        `)
+        .single();
+
+      if (error) {
+        console.error('Error updating track:', error);
+        throw new Error(error.message);
+      }
+
+      // Format the response to match Track type
+      const track: Track = {
+        ...data,
+        like_count: data.likes?.length || 0,
+        repost_count: data.reposts?.length || 0,
+        comment_count: (data as any).comments_count || 0,
+        is_liked: false,
+        is_reposted: false,
+      };
+
+      return track;
+    } catch (error: any) {
+      console.error('Error in updateTrackWithCover:', error);
+      throw new Error(error.message || 'Failed to update track');
+    }
+  },
+
   // Update track details
   async updateTrack(
     trackId: string,
@@ -636,9 +723,8 @@ export const trackService = {
         .select(`
           *,
           user:users(id, username, profile_image_url),
-          likes:track_likes(user_id),
-          reposts:track_reposts(user_id),
-          comments:track_comments(count)
+          likes:likes(user_id),
+          reposts:reposts(user_id)
         `)
         .single();
 
@@ -652,7 +738,7 @@ export const trackService = {
         ...data,
         like_count: data.likes?.length || 0,
         repost_count: data.reposts?.length || 0,
-        comment_count: data.comments?.length || 0,
+        comment_count: (data as any).comments_count || 0,
         is_liked: false,
         is_reposted: false,
       };

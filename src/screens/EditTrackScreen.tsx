@@ -12,8 +12,10 @@ import {
   Platform,
   TouchableWithoutFeedback,
   Keyboard,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as DocumentPicker from 'expo-document-picker';
 import { useAuth } from '../contexts/AuthContext';
 import { useAudioPlayer, AUDIO_PLAYER_HEIGHT } from '../contexts/AudioPlayerContext';
 import { trackService } from '../services/trackService';
@@ -25,6 +27,8 @@ const EditTrackScreen = ({ route, navigation }: any) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [tags, setTags] = useState('');
+  const [coverImage, setCoverImage] = useState<string | null>(null);
+  const [newCoverImage, setNewCoverImage] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   
@@ -43,6 +47,7 @@ const EditTrackScreen = ({ route, navigation }: any) => {
       setTitle(trackData.title);
       setDescription(trackData.description || '');
       setTags(Array.isArray(trackData.tags) ? trackData.tags.join(', ') : '');
+      setCoverImage(trackData.cover_image_url || null);
     } catch (error) {
       console.error('Error loading track:', error);
       Alert.alert('Error', 'Failed to load track details');
@@ -50,6 +55,42 @@ const EditTrackScreen = ({ route, navigation }: any) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePickCoverImage = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['image/*'],
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        setNewCoverImage(asset);
+        setCoverImage(asset.uri);
+      }
+    } catch (error) {
+      console.error('Error picking cover image:', error);
+      Alert.alert('Error', 'Failed to select image');
+    }
+  };
+
+  const handleRemoveCoverImage = () => {
+    Alert.alert(
+      'Remove Cover Image',
+      'Are you sure you want to remove the cover image?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: () => {
+            setCoverImage(null);
+            setNewCoverImage(null);
+          },
+        },
+      ]
+    );
   };
 
   const handleSave = async () => {
@@ -71,11 +112,26 @@ const EditTrackScreen = ({ route, navigation }: any) => {
 
     setSaving(true);
     try {
-      const updatedTrack = await trackService.updateTrack(trackId, {
-        title: title.trim(),
-        description: description.trim() || null,
-        tags: tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
-      });
+      if (newCoverImage) {
+        // Use the new function that handles cover image uploads
+        const updatedTrack = await trackService.updateTrackWithCover(
+          trackId,
+          {
+            title: title.trim(),
+            description: description.trim() || null,
+            tags: tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
+          },
+          newCoverImage,
+          user.id
+        );
+      } else {
+        // Use the regular update function for text-only changes
+        const updatedTrack = await trackService.updateTrack(trackId, {
+          title: title.trim(),
+          description: description.trim() || null,
+          tags: tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
+        });
+      }
 
       Alert.alert(
         'Success',
@@ -184,6 +240,31 @@ const EditTrackScreen = ({ route, navigation }: any) => {
               </View>
 
               <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Cover Image</Text>
+                {coverImage ? (
+                  <View style={styles.coverImageContainer}>
+                    <Image source={{ uri: coverImage }} style={styles.coverImagePreview} />
+                    <View style={styles.coverImageActions}>
+                      <TouchableOpacity style={styles.imageActionButton} onPress={handlePickCoverImage}>
+                        <Ionicons name="camera-outline" size={20} color="#007AFF" />
+                        <Text style={styles.imageActionText}>Change Image</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.imageActionButton} onPress={handleRemoveCoverImage}>
+                        <Ionicons name="trash-outline" size={20} color="#FF3B30" />
+                        <Text style={[styles.imageActionText, { color: '#FF3B30' }]}>Remove</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ) : (
+                  <TouchableOpacity style={styles.addImageButton} onPress={handlePickCoverImage}>
+                    <Ionicons name="camera-outline" size={32} color="#007AFF" />
+                    <Text style={styles.addImageText}>Add Cover Image</Text>
+                    <Text style={styles.addImageSubtext}>Tap to select an image</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Audio File</Text>
                 <View style={styles.audioInfo}>
                   <Ionicons name="musical-notes" size={24} color="#007AFF" />
@@ -285,6 +366,51 @@ const styles = StyleSheet.create({
     color: '#666',
     marginLeft: 12,
     flex: 1,
+  },
+  coverImageContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 8,
+    padding: 16,
+  },
+  coverImagePreview: {
+    width: 80,
+    height: 80,
+    borderRadius: 4,
+    marginRight: 16,
+  },
+  coverImageActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  imageActionButton: {
+    padding: 8,
+  },
+  imageActionText: {
+    fontSize: 16,
+    color: '#007AFF',
+  },
+  addImageButton: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 8,
+    padding: 16,
+  },
+  addImageText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  addImageSubtext: {
+    fontSize: 12,
+    color: '#666',
   },
 });
 
