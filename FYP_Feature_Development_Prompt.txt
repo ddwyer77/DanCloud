@@ -1,0 +1,227 @@
+# DanCloud FYP (For You Page) Feature Development Prompt
+
+## PROJECT OVERVIEW
+DanCloud is a React Native/Expo music sharing app built with TypeScript, Supabase backend, and audio playback capabilities. Users can upload, share, discover, and interact with music tracks. The app has a social component with following, likes, reposts, and comments.
+
+## CURRENT APP ARCHITECTURE
+
+### Tech Stack:
+- React Native with Expo SDK
+- TypeScript
+- Supabase (Database + Storage + Auth)
+- Expo AV for audio playback (being deprecated, moving to expo-audio)
+- React Navigation for navigation
+- Context API for state management
+
+### Key Files & Structure:
+```
+src/
+├── components/
+│   ├── TrackCard.tsx (displays track info, play/pause, like, repost buttons)
+│   └── BottomAudioPlayer.tsx (persistent audio player)
+├── contexts/
+│   ├── AuthContext.tsx (user authentication state)
+│   └── AudioPlayerContext.tsx (audio playback state, shuffle, playlist management)
+├── screens/
+│   ├── FeedScreen.tsx (main feed with track cards)
+│   ├── ProfileScreen.tsx (user profiles with track lists)
+│   ├── TrackDetailScreen.tsx (individual track details)
+│   ├── UploadScreen.tsx (track upload functionality)
+│   └── EditTrackScreen.tsx (edit track details and cover art)
+├── services/
+│   └── trackService.ts (all track-related API calls)
+├── types/
+│   └── index.ts (TypeScript interfaces)
+└── App.tsx (main navigation setup)
+```
+
+### Database Schema (Supabase):
+- `tracks` table: id, title, description, tags, audio_url, cover_image_url, user_id, created_at, updated_at, play_count
+- `users` table: id, username, email, profile_image_url, bio, created_at, updated_at
+- `likes` table: user_id, track_id, created_at
+- `reposts` table: user_id, track_id, created_at
+- `comments` table: id, track_id, user_id, content, created_at
+- `follows` table: follower_id, following_id, created_at
+
+### Current Navigation Structure:
+Bottom Tab Navigator with:
+- Feed (home icon)
+- Search (search icon) 
+- Upload (plus icon)
+- Profile (person icon)
+
+### Audio Player Context Features:
+- Play/pause tracks
+- Shuffle functionality
+- Auto-play next track
+- Playlist management
+- Persistent bottom audio player
+- Track progress and controls
+
+### Track Upload Process (UploadScreen.tsx):
+- Select audio file via DocumentPicker
+- Add title, description, tags
+- Optional cover image upload
+- Upload to Supabase storage
+- Create database record
+
+## NEW FEATURE REQUIREMENTS: FYP (For You Page)
+
+### Core Concept:
+A TikTok-style vertical scrolling feed focused purely on music discovery. Users swipe up/down through tracks with minimal visual information to encourage focus on audio content only.
+
+### Key Requirements:
+
+#### 1. Navigation Integration:
+- Add FYP as the CENTER tab in bottom navigation
+- Icon: "musical-notes" or similar
+- Label: "FYP"
+- Reorder existing tabs: Feed, Search, FYP, Upload, Profile
+
+#### 2. FYP Screen Design:
+- Full-screen vertical scrolling (like TikTok)
+- Each "page" shows one track
+- Minimal UI: White background with "SONG" text in center
+- Auto-play track snippet when user scrolls to it
+- Swipe up/down to navigate between tracks
+- Bottom button: "View Track" to navigate to TrackDetailScreen
+
+#### 3. Track Snippet Functionality:
+- During upload, users must select a 30-second snippet of their track
+- Store snippet start/end times in database
+- FYP plays only the selected snippet, not full track
+- Seamless looping of snippet while user is on that "page"
+
+#### 4. Upload Process Enhancement:
+- Add snippet selection step to UploadScreen
+- Audio waveform or timeline scrubber to select 30-second segment
+- Preview selected snippet before upload
+- Store snippet_start_time and snippet_end_time in tracks table
+
+#### 5. Database Changes Needed:
+- Add to `tracks` table:
+  - `snippet_start_time` (integer, seconds)
+  - `snippet_end_time` (integer, seconds)
+- Update existing tracks with default snippet (0-30 seconds)
+
+#### 6. FYP Algorithm:
+- Start with random track selection
+- Future: Consider user preferences, likes, follows
+- Infinite scroll with pagination
+- Preload next/previous tracks for smooth experience
+
+#### 7. Audio Integration:
+- Integrate with existing AudioPlayerContext
+- Don't interfere with main audio player
+- Separate FYP audio state from main playback
+- Pause FYP when user navigates away
+
+#### 8. User Experience:
+- Gesture-based navigation (swipe up/down)
+- Smooth transitions between tracks
+- Loading states for track fetching
+- Error handling for failed audio loads
+- Minimal UI to focus attention on audio
+
+## TECHNICAL IMPLEMENTATION NOTES
+
+### Components to Create:
+1. `FYPScreen.tsx` - Main FYP screen with vertical scrolling
+2. `FYPTrackCard.tsx` - Minimal track display component
+3. `SnippetSelector.tsx` - Component for selecting track snippets during upload
+
+### Services to Update:
+1. `trackService.ts` - Add functions for:
+   - `getFYPTracks()` - Fetch tracks for FYP feed
+   - `updateTrackSnippet()` - Update snippet times
+   - Enhanced `uploadTrack()` to include snippet data
+
+### Context Updates:
+1. `AudioPlayerContext.tsx` - Add FYP-specific audio state
+2. Consider separate `FYPAudioContext.tsx` if needed
+
+### Navigation Updates:
+1. `App.tsx` - Add FYP tab to bottom navigator
+2. Reorder tabs to put FYP in center
+
+### Database Migration:
+1. Add snippet columns to tracks table
+2. Update existing tracks with default snippets
+
+## EXISTING CODE PATTERNS TO FOLLOW
+
+### Error Handling:
+```typescript
+try {
+  const result = await trackService.someFunction();
+  // handle success
+} catch (error: any) {
+  console.error('Error description:', error);
+  Alert.alert('Error', error.message || 'Default error message');
+}
+```
+
+### Loading States:
+```typescript
+const [loading, setLoading] = useState(false);
+// Set loading true before async operations
+// Set loading false in finally block
+```
+
+### Navigation:
+```typescript
+import { useNavigation } from '@react-navigation/native';
+const navigation = useNavigation();
+navigation.navigate('ScreenName', { param: value });
+```
+
+### Supabase Queries:
+```typescript
+const { data, error } = await supabase
+  .from('table_name')
+  .select('columns')
+  .eq('column', value)
+  .order('created_at', { ascending: false });
+```
+
+### Audio Player Integration:
+```typescript
+const { playTrack, currentTrack, isPlaying } = useAudioPlayer();
+await playTrack(track, playlist);
+```
+
+## CURRENT ISSUES TO BE AWARE OF
+
+1. Database relationship errors in trackService.ts (track_likes vs likes)
+2. Expo AV deprecation warning (moving to expo-audio)
+3. Package version compatibility warnings
+4. Metro bundler caching issues
+
+## DESIGN PRINCIPLES
+
+1. **Minimalism**: FYP should have minimal visual elements
+2. **Audio Focus**: Design encourages listening over visual consumption  
+3. **Smooth UX**: Seamless scrolling and audio transitions
+4. **Consistency**: Follow existing app patterns and styling
+5. **Performance**: Efficient audio loading and memory management
+
+## SUCCESS CRITERIA
+
+1. Users can swipe through tracks vertically
+2. Audio snippets play automatically and loop
+3. Minimal UI focuses attention on music
+4. Smooth integration with existing app
+5. Upload process includes snippet selection
+6. No interference with main audio player
+7. Proper error handling and loading states
+
+## ADDITIONAL CONTEXT
+
+- App uses StyleSheet for styling (not styled-components)
+- Colors: Primary blue #007AFF, destructive red #FF3B30
+- Consistent with iOS design patterns
+- TypeScript strict mode enabled
+- All async operations use proper error handling
+- Context providers wrap the entire app in App.tsx
+
+This feature should feel like a music-focused TikTok where users discover new tracks through audio-first experience, then can dive deeper into tracks they enjoy. 

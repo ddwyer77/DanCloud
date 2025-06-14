@@ -231,6 +231,16 @@ const ProfileScreen = ({ navigation }: any) => {
 
   return (
     <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Profile</Text>
+        <TouchableOpacity 
+          style={styles.notificationsButton}
+          onPress={() => navigation.navigate('Notifications')}
+        >
+          <Ionicons name="notifications-outline" size={24} color="#333" />
+        </TouchableOpacity>
+      </View>
+      
       <FlatList
         data={tracks}
         keyExtractor={(item) => item.id}
@@ -253,6 +263,25 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  header: {
+    backgroundColor: '#fff',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    textAlign: 'center',
+    flex: 1,
+  },
+  notificationsButton: {
+    marginLeft: 'auto',
   },
   listContent: {
     flexGrow: 1,

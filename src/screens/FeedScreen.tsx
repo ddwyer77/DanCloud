@@ -6,6 +6,7 @@ import {
   RefreshControl,
   Text,
   SafeAreaView,
+  TouchableOpacity,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Track } from '../types';
@@ -13,6 +14,7 @@ import { trackService } from '../services/trackService';
 import { useAuth } from '../contexts/AuthContext';
 import { useAudioPlayer, AUDIO_PLAYER_HEIGHT } from '../contexts/AudioPlayerContext';
 import TrackCard from '../components/TrackCard';
+import { Ionicons } from '@expo/vector-icons';
 
 const FeedScreen = () => {
   const [tracks, setTracks] = useState<Track[]>([]);
@@ -118,6 +120,12 @@ const FeedScreen = () => {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>DanCloud</Text>
+        <TouchableOpacity 
+          style={styles.notificationsButton}
+          onPress={() => navigation.navigate('Notifications')}
+        >
+          <Ionicons name="notifications-outline" size={24} color="#333" />
+        </TouchableOpacity>
       </View>
       
       <FlatList
@@ -154,12 +162,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#333',
     textAlign: 'center',
+    flex: 1,
+  },
+  notificationsButton: {
+    marginLeft: 'auto',
   },
   list: {
     flex: 1,

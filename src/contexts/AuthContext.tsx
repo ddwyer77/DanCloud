@@ -66,6 +66,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.error('Error fetching user profile:', error);
+        
+        // If user profile doesn't exist, try to create it
+        if (error.code === 'PGRST116') {
+          console.log('User profile not found, attempting to create it...');
+          
+          // Try to call the helper function to create the profile
+          const { data: createResult, error: createError } = await supabase
+            .rpc('ensure_user_profile', { user_id: userId });
+            
+          if (createError) {
+            console.error('Failed to create user profile:', createError);
+            throw error; // Throw original error
+          }
+          
+          if (createResult) {
+            console.log('Profile creation successful, retrying fetch...');
+            // Retry fetching the profile
+            const { data: retryData, error: retryError } = await supabase
+              .from('users')
+              .select('*')
+              .eq('id', userId)
+              .single();
+              
+            if (retryError) {
+              console.error('Profile fetch retry failed:', retryError);
+              throw retryError;
+            }
+            
+            console.log('User profile fetched successfully after creation:', retryData);
+            setUser(retryData);
+            return;
+          }
+        }
+        
         throw error;
       }
       
@@ -73,6 +107,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(data);
     } catch (error) {
       console.error('Error fetching user profile:', error);
+      // Don't throw the error - this prevents the app from crashing
+      // Instead, keep the user logged in but with null profile
+      setUser(null);
     } finally {
       setLoading(false);
     }

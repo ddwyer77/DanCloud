@@ -29,6 +29,8 @@ export interface Track {
   is_liked?: boolean;
   is_reposted?: boolean;
   reposted_by?: User;
+  snippet_start_time?: number;
+  snippet_end_time?: number;
 }
 
 export interface Comment {
@@ -105,4 +107,6 @@ export interface TrackUploadData {
     name: string;
     type: string;
   };
+  snippetStartTime?: number;
+  snippetEndTime?: number;
 } 

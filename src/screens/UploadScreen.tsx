@@ -16,11 +16,13 @@ import {
 } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
+import { Audio } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { useAudioPlayer, AUDIO_PLAYER_HEIGHT } from '../contexts/AudioPlayerContext';
 import { trackService } from '../services/trackService';
 import { TrackUploadData, UploadProgress } from '../types';
+import SnippetSelector from '../components/SnippetSelector';
 
 const UploadScreen = ({ navigation }: any) => {
   const [title, setTitle] = useState('');
@@ -28,6 +30,10 @@ const UploadScreen = ({ navigation }: any) => {
   const [tags, setTags] = useState('');
   const [audioFile, setAudioFile] = useState<any>(null);
   const [coverArt, setCoverArt] = useState<any>(null);
+  const [snippetStartTime, setSnippetStartTime] = useState(0);
+  const [snippetEndTime, setSnippetEndTime] = useState(30);
+  const [audioDuration, setAudioDuration] = useState(0);
+  const [isSnippetSelectorExpanded, setIsSnippetSelectorExpanded] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<UploadProgress>({
     progress: 0,
     isUploading: false,
@@ -89,12 +95,40 @@ const UploadScreen = ({ navigation }: any) => {
         
         console.log('File reading test passed, file size:', testResult.size);
 
+        // Get audio duration
+        try {
+          console.log('Getting audio duration...');
+          const { sound } = await Audio.Sound.createAsync(
+            { uri: file.uri },
+            { shouldPlay: false }
+          );
+          
+          const status = await sound.getStatusAsync();
+          if (status.isLoaded && status.durationMillis) {
+            const durationSeconds = Math.floor(status.durationMillis / 1000);
+            setAudioDuration(durationSeconds);
+            setSnippetEndTime(Math.min(30, durationSeconds));
+            console.log('Audio duration:', durationSeconds, 'seconds');
+          }
+          
+          // Unload the sound
+          await sound.unloadAsync();
+        } catch (durationError) {
+          console.error('Error getting audio duration:', durationError);
+          // Set default duration if we can't detect it
+          setAudioDuration(180); // 3 minutes default
+          setSnippetEndTime(30);
+        }
+
         setAudioFile({
           uri: file.uri,
           name: file.name,
           type: file.mimeType || 'audio/mpeg',
           size: file.size,
         });
+        
+        // Reset snippet selector to collapsed state for new file
+        setIsSnippetSelectorExpanded(false);
         
         console.log('Audio file set successfully');
       } else {
@@ -151,6 +185,8 @@ const UploadScreen = ({ navigation }: any) => {
       tags: tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
       audioFile,
       coverArtFile: coverArt,
+      snippetStartTime,
+      snippetEndTime,
     };
 
     try {
@@ -168,6 +204,9 @@ const UploadScreen = ({ navigation }: any) => {
       setTags('');
       setAudioFile(null);
       setCoverArt(null);
+      setSnippetStartTime(0);
+      setSnippetEndTime(30);
+      setAudioDuration(0);
     } catch (error: any) {
       Alert.alert('Upload Failed', error.message);
     }
@@ -261,6 +300,41 @@ const UploadScreen = ({ navigation }: any) => {
                 />
                 <Text style={styles.helperText}>Separate tags with commas</Text>
               </View>
+
+              {/* Snippet Selector - only show if audio file is selected */}
+              {audioFile && audioDuration > 0 && (
+                <View style={styles.section}>
+                  <TouchableOpacity 
+                    style={styles.collapsibleHeader}
+                    onPress={() => setIsSnippetSelectorExpanded(!isSnippetSelectorExpanded)}
+                  >
+                    <Text style={styles.sectionTitle}>Snippet Selection</Text>
+                    <View style={styles.collapsibleHeaderRight}>
+                      <Text style={styles.snippetPreview}>
+                        {Math.floor(snippetStartTime / 60)}:{(snippetStartTime % 60).toString().padStart(2, '0')} - {Math.floor(snippetEndTime / 60)}:{(snippetEndTime % 60).toString().padStart(2, '0')}
+                      </Text>
+                      <Ionicons 
+                        name={isSnippetSelectorExpanded ? "chevron-up" : "chevron-down"} 
+                        size={20} 
+                        color="#666" 
+                      />
+                    </View>
+                  </TouchableOpacity>
+                  
+                  {isSnippetSelectorExpanded && (
+                    <SnippetSelector
+                      audioUri={audioFile.uri}
+                      duration={audioDuration}
+                      onSnippetSelect={(start, end) => {
+                        setSnippetStartTime(start);
+                        setSnippetEndTime(end);
+                      }}
+                      initialStartTime={snippetStartTime}
+                      initialEndTime={snippetEndTime}
+                    />
+                  )}
+                </View>
+              )}
 
               {uploadProgress.isUploading && (
                 <View style={styles.progressContainer}>
@@ -426,6 +500,24 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  collapsibleHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 8,
+  },
+  collapsibleHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  snippetPreview: {
+    marginRight: 12,
+    fontSize: 14,
+    color: '#666',
   },
 });
 

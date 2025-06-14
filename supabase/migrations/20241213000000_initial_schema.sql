@@ -13,14 +13,14 @@ DROP TABLE IF EXISTS follows CASCADE;
 DROP TABLE IF EXISTS tracks CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
 
--- Drop storage buckets if they exist
-DELETE FROM storage.buckets WHERE id IN ('audio', 'images');
-
--- Create storage buckets
+-- Create storage buckets (only if they don't exist)
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types) 
-VALUES 
-  ('audio', 'audio', true, 52428800, ARRAY['audio/mpeg', 'audio/mp4', 'audio/wav', 'audio/ogg']),
-  ('images', 'images', true, 10485760, ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+SELECT 'audio', 'audio', true, 52428800, ARRAY['audio/mpeg', 'audio/mp4', 'audio/wav', 'audio/ogg']
+WHERE NOT EXISTS (SELECT 1 FROM storage.buckets WHERE id = 'audio');
+
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types) 
+SELECT 'images', 'images', true, 10485760, ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+WHERE NOT EXISTS (SELECT 1 FROM storage.buckets WHERE id = 'images');
 
 -- Create users table
 CREATE TABLE users (

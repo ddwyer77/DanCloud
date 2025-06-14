@@ -15,7 +15,9 @@ import BottomAudioPlayer from './src/components/BottomAudioPlayer';
 
 // Import screens
 import FeedScreen from './src/screens/FeedScreen';
+import FYPScreen from './src/screens/FYPScreen';
 import UploadScreen from './src/screens/UploadScreen';
+import SearchScreen from './src/screens/SearchScreen';
 import NotificationsScreen from './src/screens/NotificationsScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import LoginScreen from './src/screens/auth/LoginScreen';
@@ -39,10 +41,12 @@ function MainTabs() {
 
           if (route.name === 'Feed') {
             iconName = focused ? 'home' : 'home-outline';
+          } else if (route.name === 'Search') {
+            iconName = focused ? 'search' : 'search-outline';
+          } else if (route.name === 'FYP') {
+            iconName = focused ? 'musical-notes' : 'musical-notes-outline';
           } else if (route.name === 'Upload') {
             iconName = focused ? 'add-circle' : 'add-circle-outline';
-          } else if (route.name === 'Notifications') {
-            iconName = focused ? 'notifications' : 'notifications-outline';
           } else if (route.name === 'Profile') {
             iconName = focused ? 'person' : 'person-outline';
           } else {
@@ -57,8 +61,9 @@ function MainTabs() {
       })}
     >
       <Tab.Screen name="Feed" component={FeedScreen} />
+      <Tab.Screen name="Search" component={SearchScreen} />
+      <Tab.Screen name="FYP" component={FYPScreen} />
       <Tab.Screen name="Upload" component={UploadScreen} />
-      <Tab.Screen name="Notifications" component={NotificationsScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
@@ -96,6 +101,11 @@ function AuthenticatedNavigator() {
         name="FollowersList" 
         component={FollowersListScreen}
         options={{ title: 'Followers' }}
+      />
+      <Stack.Screen 
+        name="Notifications" 
+        component={NotificationsScreen}
+        options={{ title: 'Notifications' }}
       />
     </Stack.Navigator>
   );

@@ -57,6 +57,42 @@ export const trackService = {
     }));
   },
 
+  // Get randomized tracks for FYP (For You Page)
+  async getFYPTracks(userId?: string, limit: number = 20, offset: number = 0): Promise<Track[]> {
+    // Get random tracks using a random order
+    // Note: This is a simple implementation. For better performance at scale,
+    // consider using a more sophisticated randomization algorithm
+    let query = supabase
+      .from('tracks')
+      .select(`
+        *,
+        user:users(id, username, profile_image_url),
+        likes:likes(user_id),
+        reposts:reposts(user_id)
+      `)
+      .eq('is_public', true)
+      .limit(limit * 3) // Get more tracks to randomize from
+      .order('created_at', { ascending: false });
+
+    const { data, error } = await query;
+    
+    if (error) throw new Error(error.message);
+    
+    // Randomize the tracks
+    const tracks = (data || []).map(track => ({
+      ...track,
+      comment_count: (track as any).comments_count || 0,
+      is_liked: userId ? track.likes?.some((like: any) => like.user_id === userId) || false : false,
+      is_reposted: userId ? track.reposts?.some((repost: any) => repost.user_id === userId) || false : false,
+    }));
+
+    // Shuffle the tracks array
+    const shuffled = tracks.sort(() => Math.random() - 0.5);
+    
+    // Return the requested slice
+    return shuffled.slice(offset, offset + limit);
+  },
+
   // Get feed tracks including reposts (shows both original tracks and reposts in timeline)
   async getFeedWithReposts(userId?: string, limit: number = 20, offset: number = 0): Promise<(Track & { reposted_by?: User, is_repost?: boolean })[]> {
     // Get original tracks
@@ -283,6 +319,8 @@ export const trackService = {
           user_id: userId,
           duration: 0, // Will be updated when audio is processed
           tags: trackData.tags || [],
+          snippet_start_time: Math.round(trackData.snippetStartTime || 0),
+          snippet_end_time: Math.round(trackData.snippetEndTime || 30),
         }])
         .select(`
           *,
@@ -608,7 +646,7 @@ export const trackService = {
   // Increment play count
   async incrementPlayCount(trackId: string): Promise<void> {
     const { error } = await supabase.rpc('increment_play_count', {
-      track_id: trackId
+      track_uuid: trackId
     });
 
     if (error) throw new Error(error.message);
