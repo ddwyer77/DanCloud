@@ -12,6 +12,7 @@ import { useAudioPlayer } from '../contexts/AudioPlayerContext';
 
 interface TrackCardProps {
   track: Track;
+  playlist?: Track[];
   onPress?: () => void;
   onUserPress?: () => void;
   onLike?: () => void;
@@ -21,6 +22,7 @@ interface TrackCardProps {
 
 const TrackCard: React.FC<TrackCardProps> = ({
   track,
+  playlist,
   onPress,
   onUserPress,
   onLike,
@@ -34,7 +36,7 @@ const TrackCard: React.FC<TrackCardProps> = ({
     if (isCurrentTrack && isPlaying) {
       await pauseTrack();
     } else {
-      await playTrack(track);
+      await playTrack(track, playlist);
     }
   };
 
@@ -50,6 +52,14 @@ const TrackCard: React.FC<TrackCardProps> = ({
 
   return (
     <TouchableOpacity style={styles.container} onPress={onPress}>
+      {track.reposted_by && (
+        <View style={styles.repostHeader}>
+          <Ionicons name="repeat" size={16} color="#34C759" />
+          <Text style={styles.repostText}>
+            {track.reposted_by.username} reposted
+          </Text>
+        </View>
+      )}
       <View style={styles.header}>
         <TouchableOpacity style={styles.userInfo} onPress={onUserPress}>
           <Image
@@ -223,6 +233,16 @@ const styles = StyleSheet.create({
   },
   actionTextActive: {
     color: '#333',
+  },
+  repostHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  repostText: {
+    fontSize: 14,
+    color: '#34C759',
+    marginLeft: 4,
   },
 });
 

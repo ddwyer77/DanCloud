@@ -105,9 +105,19 @@ const UserProfileScreen = ({ route, navigation }: any) => {
       <View style={styles.header}>
         <Image
           source={{
-            uri: user.profile_image_url || 'https://via.placeholder.com/120',
+            uri: (user.profile_image_url && user.profile_image_url.trim() !== '') 
+              ? user.profile_image_url 
+              : 'https://via.placeholder.com/120',
           }}
           style={styles.profileImage}
+          onError={(error) => {
+            console.log('Profile image load error:', error);
+            console.log('Attempted URL:', user.profile_image_url);
+          }}
+          onLoad={() => {
+            console.log('Profile image loaded successfully');
+            console.log('Current profile image URL:', user.profile_image_url);
+          }}
         />
         
         <Text style={styles.username}>{user.username}</Text>

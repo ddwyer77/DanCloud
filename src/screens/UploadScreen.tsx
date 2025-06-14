@@ -18,6 +18,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
+import { useAudioPlayer, AUDIO_PLAYER_HEIGHT } from '../contexts/AudioPlayerContext';
 import { trackService } from '../services/trackService';
 import { TrackUploadData, UploadProgress } from '../types';
 
@@ -33,6 +34,7 @@ const UploadScreen = ({ navigation }: any) => {
   });
   
   const { user } = useAuth();
+  const { currentTrack } = useAudioPlayer();
 
   const pickAudioFile = async () => {
     try {
@@ -192,7 +194,10 @@ const UploadScreen = ({ navigation }: any) => {
               style={styles.content} 
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
-              contentContainerStyle={styles.scrollContent}
+              contentContainerStyle={[
+                styles.scrollContent,
+                currentTrack && { paddingBottom: AUDIO_PLAYER_HEIGHT }
+              ]}
             >
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Audio File *</Text>

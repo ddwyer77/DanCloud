@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
+import { useAudioPlayer, AUDIO_PLAYER_HEIGHT } from '../contexts/AudioPlayerContext';
 import { notificationService } from '../services/notificationService';
 import { Notification } from '../types';
 
@@ -17,6 +18,7 @@ const NotificationsScreen = ({ navigation }: any) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
   const { user } = useAuth();
+  const { currentTrack } = useAudioPlayer();
 
   useEffect(() => {
     if (user) {
@@ -140,6 +142,10 @@ const NotificationsScreen = ({ navigation }: any) => {
         onRefresh={loadNotifications}
         ListEmptyComponent={!loading ? renderEmpty : null}
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={[
+          styles.listContent,
+          currentTrack && { paddingBottom: AUDIO_PLAYER_HEIGHT }
+        ]}
       />
     </SafeAreaView>
   );
@@ -149,6 +155,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  listContent: {
+    flexGrow: 1,
   },
   header: {
     backgroundColor: '#fff',

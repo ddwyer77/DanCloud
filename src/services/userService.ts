@@ -26,6 +26,11 @@ export const userService = {
     return data;
   },
 
+  // Get user profile (alias for getUserById for compatibility)
+  async getUserProfile(userId: string): Promise<User> {
+    return this.getUserById(userId);
+  },
+
   // Update user profile
   async updateProfile(userId: string, updates: Partial<User>): Promise<User> {
     const { data, error } = await supabase
@@ -142,6 +147,19 @@ export const userService = {
 
     // Update follower counts
     await this.updateFollowerCounts(followerId, followingId);
+  },
+
+  // Toggle follow status (follow if not following, unfollow if following)
+  async toggleFollow(followerId: string, followingId: string): Promise<boolean> {
+    const isCurrentlyFollowing = await this.isFollowing(followerId, followingId);
+    
+    if (isCurrentlyFollowing) {
+      await this.unfollowUser(followerId, followingId);
+      return false;
+    } else {
+      await this.followUser(followerId, followingId);
+      return true;
+    }
   },
 
   // Check if user is following another user

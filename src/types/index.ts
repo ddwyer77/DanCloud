@@ -28,6 +28,7 @@ export interface Track {
   user?: User;
   is_liked?: boolean;
   is_reposted?: boolean;
+  reposted_by?: User;
 }
 
 export interface Comment {

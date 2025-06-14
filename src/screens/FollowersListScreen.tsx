@@ -56,9 +56,14 @@ const FollowersListScreen = ({ route, navigation }: any) => {
     >
       <Image
         source={{
-          uri: item.profile_image_url || 'https://via.placeholder.com/50',
+          uri: (item.profile_image_url && item.profile_image_url.trim() !== '') 
+            ? item.profile_image_url 
+            : 'https://via.placeholder.com/50',
         }}
         style={styles.avatar}
+        onError={(error) => {
+          console.log('Avatar load error for user:', item.username, error);
+        }}
       />
       
       <View style={styles.userInfo}>

@@ -23,7 +23,7 @@ import { commentService } from '../services/commentService';
 import { Track, Comment } from '../types';
 
 const TrackDetailScreen = ({ route, navigation }: any) => {
-  const { trackId, openComments } = route.params;
+  const { trackId, openComments, playlist } = route.params;
   const [track, setTrack] = useState<Track | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
@@ -69,7 +69,7 @@ const TrackDetailScreen = ({ route, navigation }: any) => {
     if (currentTrack?.id === track.id && isPlaying) {
       await pauseTrack();
     } else {
-      await playTrack(track);
+      await playTrack(track, playlist);
     }
   };
 

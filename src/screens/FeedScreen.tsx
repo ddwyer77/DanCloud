@@ -11,55 +11,36 @@ import { useNavigation } from '@react-navigation/native';
 import { Track } from '../types';
 import { trackService } from '../services/trackService';
 import { useAuth } from '../contexts/AuthContext';
+import { useAudioPlayer, AUDIO_PLAYER_HEIGHT } from '../contexts/AudioPlayerContext';
 import TrackCard from '../components/TrackCard';
 
 const FeedScreen = () => {
   const [tracks, setTracks] = useState<Track[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [page, setPage] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
   const { user } = useAuth();
+  const { currentTrack } = useAudioPlayer();
   const navigation = useNavigation<any>();
 
   useEffect(() => {
     loadTracks();
   }, []);
 
-  const loadTracks = async (refresh = false) => {
-    if (loading || (!hasMore && !refresh)) return;
-
+  const loadTracks = async () => {
     setLoading(true);
     try {
-      const currentPage = refresh ? 0 : page;
-      const newTracks = await trackService.getFeedTracks(currentPage);
-      
-      if (refresh) {
-        setTracks(newTracks);
-        setPage(1);
-      } else {
-        setTracks(prev => [...prev, ...newTracks]);
-        setPage(prev => prev + 1);
-      }
-      
-      setHasMore(newTracks.length === 20);
+      const feedTracks = await trackService.getFeedWithReposts(user?.id);
+      setTracks(feedTracks);
     } catch (error) {
       console.error('Error loading tracks:', error);
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   };
 
   const handleRefresh = () => {
     setRefreshing(true);
-    loadTracks(true);
-  };
-
-  const handleLoadMore = () => {
-    if (!loading && hasMore) {
-      loadTracks();
-    }
+    loadTracks().finally(() => setRefreshing(false));
   };
 
   const handleLike = async (track: Track) => {
@@ -106,10 +87,19 @@ const FeedScreen = () => {
     }
   };
 
+  const handleTrackPress = (track: Track) => {
+    // Pass the entire feed as playlist for shuffle functionality
+    navigation.navigate('TrackDetail', { 
+      trackId: track.id, 
+      playlist: tracks 
+    });
+  };
+
   const renderTrack = ({ item }: { item: Track }) => (
     <TrackCard
       track={item}
-      onPress={() => navigation.navigate('TrackDetail', { trackId: item.id })}
+      playlist={tracks}
+      onPress={() => handleTrackPress(item)}
       onUserPress={() => navigation.navigate('UserProfile', { userId: item.user_id })}
       onLike={() => handleLike(item)}
       onRepost={() => handleRepost(item)}
@@ -132,16 +122,22 @@ const FeedScreen = () => {
       
       <FlatList
         data={tracks}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => {
+          const repostId = (item as any).repost_id;
+          return repostId ? `repost-${repostId}` : `track-${item.id}`;
+        }}
         renderItem={renderTrack}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
         }
-        onEndReached={handleLoadMore}
         onEndReachedThreshold={0.1}
         ListEmptyComponent={!loading ? renderEmpty : null}
         showsVerticalScrollIndicator={false}
         style={styles.list}
+        contentContainerStyle={[
+          styles.listContent,
+          currentTrack && { paddingBottom: AUDIO_PLAYER_HEIGHT }
+        ]}
       />
     </SafeAreaView>
   );
@@ -167,6 +163,9 @@ const styles = StyleSheet.create({
   },
   list: {
     flex: 1,
+  },
+  listContent: {
+    flexGrow: 1,
   },
   emptyContainer: {
     flex: 1,

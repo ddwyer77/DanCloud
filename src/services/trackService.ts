@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { Track, TrackUploadData, UploadProgress, Comment } from '../types';
+import { Track, TrackUploadData, UploadProgress, Comment, User } from '../types';
 
 export const trackService = {
   // Test file reading capability
@@ -55,6 +55,72 @@ export const trackService = {
       is_liked: userId ? track.likes?.some((like: any) => like.user_id === userId) || false : false,
       is_reposted: userId ? track.reposts?.some((repost: any) => repost.user_id === userId) || false : false,
     }));
+  },
+
+  // Get feed tracks including reposts (shows both original tracks and reposts in timeline)
+  async getFeedWithReposts(userId?: string, limit: number = 20, offset: number = 0): Promise<(Track & { reposted_by?: User, is_repost?: boolean })[]> {
+    // Get original tracks
+    const { data: originalTracks, error: tracksError } = await supabase
+      .from('tracks')
+      .select(`
+        *,
+        user:users(id, username, profile_image_url),
+        likes:likes(user_id),
+        reposts:reposts(user_id)
+      `)
+      .eq('is_public', true)
+      .order('created_at', { ascending: false });
+
+    if (tracksError) throw new Error(tracksError.message);
+
+    // Get reposts with track and user info
+    const { data: repostData, error: repostsError } = await supabase
+      .from('reposts')
+      .select(`
+        *,
+        user:users(id, username, profile_image_url),
+        track:tracks(
+          *,
+          user:users(id, username, profile_image_url),
+          likes:likes(user_id),
+          reposts:reposts(user_id)
+        )
+      `)
+      .order('created_at', { ascending: false });
+
+    if (repostsError) throw new Error(repostsError.message);
+
+    // Format original tracks
+    const formattedTracks = (originalTracks || []).map(track => ({
+      ...track,
+      comment_count: (track as any).comments_count || 0,
+      is_liked: userId ? track.likes?.some((like: any) => like.user_id === userId) || false : false,
+      is_reposted: userId ? track.reposts?.some((repost: any) => repost.user_id === userId) || false : false,
+      is_repost: false,
+      created_at: track.created_at, // Use original track creation time for sorting
+    }));
+
+    // Format reposts as track entries
+    const formattedReposts = (repostData || [])
+      .filter(repost => repost.track && repost.track.is_public) // Only include public tracks
+      .map(repost => ({
+        ...repost.track,
+        comment_count: (repost.track as any).comments_count || 0,
+        is_liked: userId ? repost.track.likes?.some((like: any) => like.user_id === userId) || false : false,
+        is_reposted: userId ? repost.track.reposts?.some((repost_check: any) => repost_check.user_id === userId) || false : false,
+        is_repost: true,
+        reposted_by: repost.user,
+        created_at: repost.created_at, // Use repost creation time for sorting
+        // Add unique identifier for reposts
+        repost_id: repost.id,
+      }));
+
+    // Combine and sort by creation time (most recent first)
+    const allFeedItems = [...formattedTracks, ...formattedReposts]
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(offset, offset + limit);
+
+    return allFeedItems;
   },
 
   // Get track by ID (alias for compatibility)

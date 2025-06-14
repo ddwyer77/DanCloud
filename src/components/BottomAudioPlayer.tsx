@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Image,
   Dimensions,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
@@ -20,10 +21,14 @@ const BottomAudioPlayer = () => {
     position,
     duration,
     isLoading,
+    isShuffleEnabled,
     pauseTrack,
     resumeTrack,
     seekTo,
     stopTrack,
+    playNext,
+    playPrevious,
+    toggleShuffle,
   } = useAudioPlayer();
 
   // Don't render if no track is loaded
@@ -99,9 +104,12 @@ const BottomAudioPlayer = () => {
 
           {/* Control Buttons */}
           <View style={styles.buttonContainer}>
-            {/* Previous (placeholder for future) */}
-            <TouchableOpacity style={styles.controlButton} disabled>
-              <Ionicons name="play-skip-back" size={20} color="#ccc" />
+            {/* Previous */}
+            <TouchableOpacity 
+              style={styles.controlButton} 
+              onPress={playPrevious}
+            >
+              <Ionicons name="play-skip-back" size={20} color="#666" />
             </TouchableOpacity>
 
             {/* Play/Pause */}
@@ -119,9 +127,24 @@ const BottomAudioPlayer = () => {
               )}
             </TouchableOpacity>
 
-            {/* Next (placeholder for future) */}
-            <TouchableOpacity style={styles.controlButton} disabled>
-              <Ionicons name="play-skip-forward" size={20} color="#ccc" />
+            {/* Next */}
+            <TouchableOpacity 
+              style={styles.controlButton} 
+              onPress={playNext}
+            >
+              <Ionicons name="play-skip-forward" size={20} color="#666" />
+            </TouchableOpacity>
+
+            {/* Shuffle */}
+            <TouchableOpacity 
+              style={styles.controlButton} 
+              onPress={toggleShuffle}
+            >
+              <Ionicons 
+                name="shuffle" 
+                size={18} 
+                color={isShuffleEnabled ? "#ff5500" : "#ccc"} 
+              />
             </TouchableOpacity>
 
             {/* Close/Stop */}
@@ -141,7 +164,7 @@ const BottomAudioPlayer = () => {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: 0,
+    bottom: Platform.OS === 'ios' ? 83 : 60, // iOS tab bar: 83px, Android: 60px
     left: 0,
     right: 0,
     backgroundColor: '#fff',
@@ -178,7 +201,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    paddingBottom: 34, // Account for bottom safe area
+    paddingBottom: 12, // Removed extra padding since we're above tab bar now
   },
   trackInfo: {
     flex: 1,

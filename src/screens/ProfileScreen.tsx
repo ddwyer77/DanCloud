@@ -11,12 +11,14 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
+import { useAudioPlayer, AUDIO_PLAYER_HEIGHT } from '../contexts/AudioPlayerContext';
 import { trackService } from '../services/trackService';
 import { Track } from '../types';
 import TrackCard from '../components/TrackCard';
 
 const ProfileScreen = ({ navigation }: any) => {
   const { user, signOut } = useAuth();
+  const { currentTrack } = useAudioPlayer();
   const [tracks, setTracks] = useState<Track[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -73,14 +75,67 @@ const ProfileScreen = ({ navigation }: any) => {
     );
   };
 
+  const handleLike = async (track: Track) => {
+    if (!user) return;
+
+    try {
+      const isLiked = await trackService.toggleLike(track.id, user.id);
+      
+      setTracks(prev =>
+        prev.map(t =>
+          t.id === track.id
+            ? {
+                ...t,
+                is_liked: isLiked,
+                like_count: isLiked ? t.like_count + 1 : t.like_count - 1,
+              }
+            : t
+        )
+      );
+    } catch (error) {
+      console.error('Error toggling like:', error);
+    }
+  };
+
+  const handleRepost = async (track: Track) => {
+    if (!user) return;
+
+    try {
+      const isReposted = await trackService.toggleRepost(track.id, user.id);
+      
+      setTracks(prev =>
+        prev.map(t =>
+          t.id === track.id
+            ? {
+                ...t,
+                is_reposted: isReposted,
+                repost_count: isReposted ? t.repost_count + 1 : t.repost_count - 1,
+              }
+            : t
+        )
+      );
+    } catch (error) {
+      console.error('Error toggling repost:', error);
+    }
+  };
+
+  const handleTrackPress = (track: Track) => {
+    // Pass the user's tracks as playlist for shuffle functionality
+    navigation.navigate('TrackDetail', { 
+      trackId: track.id, 
+      playlist: tracks 
+    });
+  };
+
   const renderTrack = ({ item }: { item: Track }) => (
     <View style={styles.trackContainer}>
       <TrackCard
         track={item}
-        onPress={() => navigation.navigate('TrackDetail', { trackId: item.id })}
+        playlist={tracks}
+        onPress={() => handleTrackPress(item)}
         onUserPress={() => {}}
-        onLike={() => {}}
-        onRepost={() => {}}
+        onLike={() => handleLike(item)}
+        onRepost={() => handleRepost(item)}
         onComment={() => navigation.navigate('TrackDetail', { trackId: item.id, openComments: true })}
       />
       <TouchableOpacity
@@ -179,6 +234,10 @@ const ProfileScreen = ({ navigation }: any) => {
         refreshing={loading}
         onRefresh={loadUserTracks}
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={[
+          styles.listContent,
+          currentTrack && { paddingBottom: AUDIO_PLAYER_HEIGHT }
+        ]}
       />
     </SafeAreaView>
   );
@@ -188,6 +247,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  listContent: {
+    flexGrow: 1,
   },
   profileHeader: {
     backgroundColor: '#fff',
