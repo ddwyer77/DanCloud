@@ -17,10 +17,11 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
-import { useAudioPlayer } from '../contexts/AudioPlayerContext';
+import { useAudioPlayer, AUDIO_PLAYER_HEIGHT } from '../contexts/AudioPlayerContext';
 import { trackService } from '../services/trackService';
 import { commentService } from '../services/commentService';
 import { Track, Comment } from '../types';
+import AddToPlaylistButton from '../components/AddToPlaylistButton';
 
 const TrackDetailScreen = ({ route, navigation }: any) => {
   const { trackId, openComments, playlist } = route.params;
@@ -114,6 +115,7 @@ const TrackDetailScreen = ({ route, navigation }: any) => {
       setComments(prev => [comment, ...prev]);
       setNewComment('');
       setTrack(prev => prev ? { ...prev, comment_count: prev.comment_count + 1 } : null);
+      Keyboard.dismiss();
     } catch (error) {
       console.error('Error adding comment:', error);
       Alert.alert('Error', 'Failed to add comment');
@@ -151,6 +153,111 @@ const TrackDetailScreen = ({ route, navigation }: any) => {
     </View>
   );
 
+  const renderTrackHeader = () => (
+    <View style={styles.trackContainer}>
+      <Image source={{ uri: track?.cover_image_url }} style={styles.coverArt} />
+
+      <View style={styles.trackInfo}>
+        <Text style={styles.title}>{track?.title}</Text>
+        <Text style={styles.artist}>{track?.user?.username}</Text>
+        {track?.description && (
+          <Text style={styles.description}>{track.description}</Text>
+        )}
+        {track?.tags && Array.isArray(track.tags) && track.tags.length > 0 && (
+          <View style={styles.tags}>
+            {track.tags.map((tag, index) => (
+              <Text key={index} style={styles.tag}>
+                #{tag}
+              </Text>
+            ))}
+          </View>
+        )}
+      </View>
+
+      <View style={styles.playButtonContainer}>
+        <TouchableOpacity style={styles.playButton} onPress={handlePlayPause}>
+          <Ionicons
+            name={isCurrentTrack && isPlaying ? 'pause' : 'play'}
+            size={32}
+            color="#fff"
+          />
+        </TouchableOpacity>
+      </View>
+
+      {isCurrentTrack && (
+        <View style={styles.progressContainer}>
+          <View style={styles.progressBar}>
+            <View
+              style={[
+                styles.progressFill,
+                { width: `${((position || 0) / (duration || 1)) * 100}%` },
+              ]}
+            />
+          </View>
+          <View style={styles.timeContainer}>
+            <Text style={styles.timeText}>
+              {formatTime(position || 0)}
+            </Text>
+            <Text style={styles.timeText}>
+              {formatTime(duration || 0)}
+            </Text>
+          </View>
+        </View>
+      )}
+
+      <View style={styles.actions}>
+        <TouchableOpacity style={styles.actionButton} onPress={handleLike}>
+          <Ionicons
+            name={track?.is_liked ? 'heart' : 'heart-outline'}
+            size={24}
+            color={track?.is_liked ? '#FF3B30' : '#8E8E93'}
+          />
+          <Text style={[styles.actionText, track?.is_liked && styles.actionTextActive]}>
+            {formatCount(track?.like_count)}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.actionButton} onPress={handleRepost}>
+          <Ionicons
+            name={track?.is_reposted ? 'repeat' : 'repeat-outline'}
+            size={24}
+            color={track?.is_reposted ? '#34C759' : '#8E8E93'}
+          />
+          <Text style={[styles.actionText, track?.is_reposted && styles.actionTextActive]}>
+            {formatCount(track?.repost_count)}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={() => {
+            setCommentsVisible(true);
+            if (!commentsVisible) loadComments();
+          }}
+        >
+          <Ionicons name="chatbubble-outline" size={24} color="#8E8E93" />
+          <Text style={styles.actionText}>{formatCount(track?.comment_count)}</Text>
+        </TouchableOpacity>
+
+        {track && (
+          <AddToPlaylistButton 
+            trackId={track.id} 
+            trackTitle={track.title}
+            style={styles.actionButton}
+            color="#8E8E93"
+          />
+        )}
+      </View>
+
+      {/* Comments Section Header */}
+      {commentsVisible && (
+        <View style={styles.commentsHeader}>
+          <Text style={styles.commentsTitle}>Comments</Text>
+        </View>
+      )}
+    </View>
+  );
+
   if (!track) {
     return (
       <SafeAreaView style={styles.container}>
@@ -166,155 +273,82 @@ const TrackDetailScreen = ({ route, navigation }: any) => {
       <KeyboardAvoidingView 
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
       >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <View style={styles.container}>
-            <View style={styles.header}>
-              <TouchableOpacity onPress={() => navigation.goBack()}>
-                <Ionicons name="arrow-back" size={24} color="#333" />
-              </TouchableOpacity>
-              <Text style={styles.headerTitle}>Track</Text>
-              {isOwner ? (
-                <TouchableOpacity onPress={() => navigation.navigate('EditTrack', { trackId: track.id })}>
-                  <Ionicons name="create-outline" size={24} color="#007AFF" />
-                </TouchableOpacity>
-              ) : (
-                <View style={{ width: 24 }} />
-              )}
-            </View>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={24} color="#333" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Track</Text>
+          {isOwner ? (
+            <TouchableOpacity onPress={() => navigation.navigate('EditTrack', { trackId: track.id })}>
+              <Ionicons name="create-outline" size={24} color="#007AFF" />
+            </TouchableOpacity>
+          ) : (
+            <View style={{ width: 24 }} />
+          )}
+        </View>
 
-            <ScrollView 
-              style={styles.content}
-              contentContainerStyle={styles.scrollContent}
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}
-            >
-              <View style={styles.trackContainer}>
-                <Image source={{ uri: track.cover_image_url }} style={styles.coverArt} />
-
-                <View style={styles.trackInfo}>
-                  <Text style={styles.title}>{track.title}</Text>
-                  <Text style={styles.artist}>{track.user?.username}</Text>
-                  {track.description && (
-                    <Text style={styles.description}>{track.description}</Text>
-                  )}
-                  {track.tags && Array.isArray(track.tags) && track.tags.length > 0 && (
-                    <View style={styles.tags}>
-                      {track.tags.map((tag, index) => (
-                        <Text key={index} style={styles.tag}>
-                          #{tag}
-                        </Text>
-                      ))}
-                    </View>
-                  )}
-                </View>
-
-                <View style={styles.playButtonContainer}>
-                  <TouchableOpacity style={styles.playButton} onPress={handlePlayPause}>
-                    <Ionicons
-                      name={isCurrentTrack && isPlaying ? 'pause' : 'play'}
-                      size={32}
-                      color="#fff"
-                    />
-                  </TouchableOpacity>
-                </View>
-
-                {isCurrentTrack && (
-                  <View style={styles.progressContainer}>
-                    <View style={styles.progressBar}>
-                      <View
-                        style={[
-                          styles.progressFill,
-                          { width: `${((position || 0) / (duration || 1)) * 100}%` },
-                        ]}
-                      />
-                    </View>
-                    <View style={styles.timeContainer}>
-                      <Text style={styles.timeText}>
-                        {formatTime(position || 0)}
-                      </Text>
-                      <Text style={styles.timeText}>
-                        {formatTime(duration || 0)}
-                      </Text>
-                    </View>
-                  </View>
-                )}
-
-                <View style={styles.actions}>
-                  <TouchableOpacity style={styles.actionButton} onPress={handleLike}>
-                    <Ionicons
-                      name={track.is_liked ? 'heart' : 'heart-outline'}
-                      size={24}
-                      color={track.is_liked ? '#FF3B30' : '#8E8E93'}
-                    />
-                    <Text style={[styles.actionText, track.is_liked && styles.actionTextActive]}>
-                      {formatCount(track.like_count)}
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity style={styles.actionButton} onPress={handleRepost}>
-                    <Ionicons
-                      name={track.is_reposted ? 'repeat' : 'repeat-outline'}
-                      size={24}
-                      color={track.is_reposted ? '#34C759' : '#8E8E93'}
-                    />
-                    <Text style={[styles.actionText, track.is_reposted && styles.actionTextActive]}>
-                      {formatCount(track.repost_count)}
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.actionButton}
-                    onPress={() => {
-                      setCommentsVisible(true);
-                      if (!commentsVisible) loadComments();
-                    }}
-                  >
-                    <Ionicons name="chatbubble-outline" size={24} color="#8E8E93" />
-                    <Text style={styles.actionText}>{formatCount(track.comment_count)}</Text>
-                  </TouchableOpacity>
-                </View>
+        {commentsVisible ? (
+          // When comments are visible, use FlatList for better scrolling
+          <FlatList
+            data={comments}
+            keyExtractor={(item) => item.id}
+            renderItem={renderComment}
+            ListHeaderComponent={renderTrackHeader}
+            ListFooterComponent={<View style={{ height: currentTrack ? AUDIO_PLAYER_HEIGHT + 20 : 20 }} />}
+            refreshing={loading}
+            onRefresh={loadComments}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={true}
+            contentContainerStyle={styles.flatListContent}
+            ListEmptyComponent={
+              <View style={styles.noComments}>
+                <Text style={styles.noCommentsText}>No comments yet</Text>
+                <Text style={styles.noCommentsSubtext}>Be the first to comment!</Text>
               </View>
+            }
+          />
+        ) : (
+          // When comments are hidden, use ScrollView
+          <ScrollView 
+            style={styles.content}
+            contentContainerStyle={[
+              styles.scrollContent,
+              { paddingBottom: currentTrack ? AUDIO_PLAYER_HEIGHT + 20 : 20 }
+            ]}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            {renderTrackHeader()}
+          </ScrollView>
+        )}
 
-              {commentsVisible && (
-                <View style={styles.commentsSection}>
-                  <View style={styles.commentInput}>
-                    <TextInput
-                      style={styles.textInput}
-                      value={newComment}
-                      onChangeText={setNewComment}
-                      placeholder="Add a comment..."
-                      multiline
-                      maxLength={500}
-                      returnKeyType="send"
-                      onSubmitEditing={handleAddComment}
-                      blurOnSubmit={false}
-                    />
-                    <TouchableOpacity
-                      style={[styles.sendButton, !newComment.trim() && styles.sendButtonDisabled]}
-                      onPress={handleAddComment}
-                      disabled={!newComment.trim()}
-                    >
-                      <Ionicons name="send" size={20} color="#007AFF" />
-                    </TouchableOpacity>
-                  </View>
-
-                  <FlatList
-                    data={comments}
-                    keyExtractor={(item) => item.id}
-                    renderItem={renderComment}
-                    refreshing={loading}
-                    onRefresh={loadComments}
-                    style={styles.commentsList}
-                    keyboardShouldPersistTaps="handled"
-                    scrollEnabled={false}
-                  />
-                </View>
-              )}
-            </ScrollView>
+        {/* Comment Input - Fixed at bottom when comments are visible */}
+        {commentsVisible && user && (
+          <View style={styles.commentInputContainer}>
+            <View style={styles.commentInput}>
+              <TextInput
+                style={styles.textInput}
+                value={newComment}
+                onChangeText={setNewComment}
+                placeholder="Add a comment..."
+                multiline
+                maxLength={500}
+                returnKeyType="send"
+                onSubmitEditing={handleAddComment}
+                blurOnSubmit={false}
+              />
+              <TouchableOpacity
+                style={[styles.sendButton, !newComment.trim() && styles.sendButtonDisabled]}
+                onPress={handleAddComment}
+                disabled={!newComment.trim()}
+              >
+                <Ionicons name="send" size={20} color="#007AFF" />
+              </TouchableOpacity>
+            </View>
           </View>
-        </TouchableWithoutFeedback>
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -465,8 +499,6 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
     backgroundColor: '#fff',
   },
   textInput: {
@@ -520,6 +552,37 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     lineHeight: 20,
+  },
+  commentsHeader: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  commentsTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+  },
+  flatListContent: {
+    paddingBottom: 20,
+  },
+  noComments: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  noCommentsText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  noCommentsSubtext: {
+    fontSize: 14,
+    color: '#666',
+  },
+  commentInputContainer: {
+    padding: 16,
   },
 });
 

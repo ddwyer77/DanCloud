@@ -1,3 +1,22 @@
+/*
+ * FYP SCREEN - TEMPORARILY DISABLED
+ * 
+ * This screen has been removed from navigation due to audio management issues
+ * causing app-wide conflicts. The code is preserved for future redevelopment.
+ * 
+ * Issues to resolve before re-enabling:
+ * - Audio lifecycle management (focus/blur effects)
+ * - Infinite loop in audio playback logic
+ * - Background audio conflicts
+ * - Performance issues with multiple useEffect hooks
+ * - Complex gesture handling causing state management issues
+ * 
+ * Date disabled: January 2025
+ * Reason: Audio conflicts making app unusable
+ * 
+ * NOTE: All functionality preserved for future restoration
+ */
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
@@ -49,6 +68,7 @@ const FYPScreen = () => {
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
   
   const navigation = useNavigation();
   const { user } = useAuth();
@@ -57,26 +77,76 @@ const FYPScreen = () => {
   // Refs for managing audio and pagination
   const currentTrackRef = useRef<Track | null>(null);
   const loadingMoreRef = useRef(false);
+  const lastLoopTimeRef = useRef<number>(0);
 
   // Load initial tracks
   useEffect(() => {
     loadTracks();
   }, []);
 
+  // Cleanup audio when component unmounts
+  useEffect(() => {
+    return () => {
+      console.log('FYP Screen unmounting - cleaning up audio');
+      stopAudio();
+    };
+  }, []);
+
   // Handle screen focus/blur for audio management
   useFocusEffect(
     useCallback(() => {
-      // Screen is focused - start playing current track
-      if (tracks.length > 0 && currentIndex < tracks.length) {
-        playCurrentTrack();
-      }
+      console.log('FYP Screen focused');
+      setIsFocused(true);
       
       return () => {
-        // Screen is blurred - stop audio
+        // Screen is blurred - stop audio immediately
+        console.log('FYP Screen blurred - stopping audio');
+        setIsFocused(false);
         stopAudio();
       };
-    }, [tracks, currentIndex])
+    }, [])
   );
+
+  // Play track when screen is focused and we have tracks loaded
+  useEffect(() => {
+    if (isFocused && tracks.length > 0 && currentIndex < tracks.length && !isTransitioning) {
+      console.log('Starting playback - focused and tracks ready');
+      const timer = setTimeout(() => {
+        playCurrentTrack();
+      }, 500);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isFocused, tracks.length]); // Only depend on focus and tracks being loaded
+
+  // Handle track index changes (swiping) - only when focused
+  useEffect(() => {
+    if (isFocused && tracks.length > 0 && !isTransitioning) {
+      console.log('Track index changed to:', currentIndex);
+      const timer = setTimeout(() => {
+        playCurrentTrack();
+      }, 300);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [currentIndex]); // Only depend on currentIndex changes
+
+  // Pan responder for gesture handling
+  const panResponder = PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: (evt, gestureState) => {
+      return Math.abs(gestureState.dy) > Math.abs(gestureState.dx) && Math.abs(gestureState.dy) > 20;
+    },
+    onPanResponderRelease: (evt, gestureState) => {
+      const { dy, vy } = gestureState;
+      const shouldSwipe = Math.abs(dy) > 100 && Math.abs(vy) > 0.5;
+      
+      if (shouldSwipe) {
+        const direction = dy > 0 ? 'down' : 'up';
+        handleSwipe(direction);
+      }
+    },
+  });
 
   const loadTracks = async () => {
     try {
@@ -124,11 +194,11 @@ const FYPScreen = () => {
       // Longer delay to ensure audio is fully stopped
       await new Promise(resolve => setTimeout(resolve, 300));
 
-      // Configure audio for background play
+      // Configure audio mode - ensure it doesn't stay active in background
       await Audio.setAudioModeAsync({
-        staysActiveInBackground: false,
-        playsInSilentModeIOS: true,
-        shouldDuckAndroid: true,
+        staysActiveInBackground: false, // This is key - don't play in background
+        playsInSilentModeIOS: false, // Don't override silent mode
+        shouldDuckAndroid: false, // Don't duck other audio
       });
 
       const snippetStart = (track.snippet_start_time || 0) * 1000;
@@ -139,7 +209,7 @@ const FYPScreen = () => {
         { 
           shouldPlay: true,
           positionMillis: snippetStart,
-          progressUpdateIntervalMillis: 1000, // Less frequent updates
+          progressUpdateIntervalMillis: 2000, // Reduced frequency to prevent rapid updates
           isLooping: false,
         },
         onPlaybackStatusUpdate
@@ -154,21 +224,27 @@ const FYPScreen = () => {
 
     } catch (error) {
       console.error('Error playing track:', error);
+      setIsPlaying(false);
     } finally {
       setIsTransitioning(false);
     }
   };
 
   const stopAudio = async () => {
+    console.log('Stopping audio - current sound exists:', !!sound);
     if (sound) {
       try {
         // Check if sound is loaded before trying to stop it
         const status = await sound.getStatusAsync();
+        console.log('Audio status before stopping:', status.isLoaded, status.isLoaded ? (status as any).isPlaying : 'not loaded');
+        
         if (status.isLoaded) {
           await sound.stopAsync();
+          console.log('Audio stopped successfully');
         }
         // Always try to unload regardless of loaded status
         await sound.unloadAsync();
+        console.log('Audio unloaded successfully');
       } catch (error: any) {
         // Silently handle expected errors when sound is not loaded
         if (!error.message?.includes('sound is not loaded')) {
@@ -188,26 +264,51 @@ const FYPScreen = () => {
     setSound(null);
     setIsPlaying(false);
     currentTrackRef.current = null;
+    lastLoopTimeRef.current = 0; // Reset loop timer
+    console.log('Audio cleanup complete');
   };
 
   const onPlaybackStatusUpdate = (status: any) => {
-    if (status.isLoaded && currentTrackRef.current && sound) {
+    if (status.isLoaded && currentTrackRef.current && sound && !isTransitioning && isFocused) {
       const track = currentTrackRef.current;
       const snippetStartTime = (track.snippet_start_time || 0) * 1000;
-      const snippetEndTime = (track.snippet_end_time || (track.snippet_start_time || 0) + 30) * 1000;
+      const snippetDuration = 30 * 1000; // 30 seconds default
+      const snippetEndTime = snippetStartTime + snippetDuration;
+      const now = Date.now();
       
-      // Only loop back if we've actually reached the end of the snippet
-      // Add a small buffer to prevent constant looping
-      if (status.positionMillis >= snippetEndTime - 100) {
-        console.log('Looping snippet back to start');
-        sound.setPositionAsync(snippetStartTime).catch(console.error);
+      // Only loop if we've reached the actual end and haven't looped recently (debounce)
+      if (status.positionMillis >= snippetEndTime && 
+          status.positionMillis > snippetStartTime + 1000 &&
+          now - lastLoopTimeRef.current > 2000) { // 2 second debounce
+        console.log('Looping snippet back to start - Position:', status.positionMillis, 'End:', snippetEndTime);
+        lastLoopTimeRef.current = now;
+        
+        // Check if sound is still loaded before trying to set position
+        sound.getStatusAsync().then(currentStatus => {
+          if (currentStatus.isLoaded && isFocused) {
+            sound.setPositionAsync(snippetStartTime).catch(error => {
+              console.log('Error setting position (expected if sound unloaded):', error.message);
+            });
+          }
+        }).catch(console.error);
       }
       
-      // Don't restart on didJustFinish - let it loop naturally
-      if (status.didJustFinish) {
-        console.log('Track finished, restarting snippet');
-        sound.setPositionAsync(snippetStartTime).catch(console.error);
-        sound.playAsync().catch(console.error);
+      // Handle track finish - only if it actually finished playing and not looping too frequently
+      if (status.didJustFinish && !status.isLooping && now - lastLoopTimeRef.current > 2000 && isFocused) {
+        console.log('Track finished naturally, restarting snippet');
+        lastLoopTimeRef.current = now;
+        
+        // Check if sound is still loaded before trying to restart
+        sound.getStatusAsync().then(currentStatus => {
+          if (currentStatus.isLoaded && isFocused) {
+            sound.setPositionAsync(snippetStartTime).catch(error => {
+              console.log('Error restarting track (expected if sound unloaded):', error.message);
+            });
+            sound.playAsync().catch(error => {
+              console.log('Error playing restarted track (expected if sound unloaded):', error.message);
+            });
+          }
+        }).catch(console.error);
       }
     }
   };
@@ -237,35 +338,6 @@ const FYPScreen = () => {
       animated: true,
     });
   };
-
-  // Play track when index changes
-  useEffect(() => {
-    if (tracks.length > 0 && currentIndex < tracks.length && !isTransitioning) {
-      // Add a delay to ensure smooth transitions and prevent race conditions
-      const timer = setTimeout(() => {
-        playCurrentTrack();
-      }, 400);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [currentIndex, tracks, isTransitioning]);
-
-  // Pan responder for gesture handling
-  const panResponder = PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onMoveShouldSetPanResponder: (evt, gestureState) => {
-      return Math.abs(gestureState.dy) > Math.abs(gestureState.dx) && Math.abs(gestureState.dy) > 20;
-    },
-    onPanResponderRelease: (evt, gestureState) => {
-      const { dy, vy } = gestureState;
-      const shouldSwipe = Math.abs(dy) > 100 && Math.abs(vy) > 0.5;
-      
-      if (shouldSwipe) {
-        const direction = dy > 0 ? 'down' : 'up';
-        handleSwipe(direction);
-      }
-    },
-  });
 
   const handleViewTrack = () => {
     if (currentIndex < tracks.length) {

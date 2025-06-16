@@ -1,0 +1,370 @@
+DANCLOUD APP - COMPREHENSIVE TECHNICAL SUMMARY FOR PLAYLISTING FEATURE
+================================================================================
+
+PROJECT OVERVIEW
+================================================================================
+DanCloud is a React Native music streaming app built with Expo, similar to SoundCloud, where users can upload, share, and discover music tracks. The app features a TikTok-style "For You Page" (FYP) for music discovery, user profiles, audio streaming, and social features like likes, reposts, and comments.
+
+CURRENT TECH STACK
+================================================================================
+- Framework: React Native with Expo (managed workflow)
+- Database: Supabase (PostgreSQL)
+- Authentication: Supabase Auth
+- Storage: Supabase Storage (for audio files and images)
+- Audio: expo-av (with custom nativeAudioService)
+- Navigation: React Navigation v6
+- State Management: React Context API
+- UI: Custom components with consistent theming
+- Real-time: Supabase real-time subscriptions
+
+CURRENT APP ARCHITECTURE
+================================================================================
+
+FOLDER STRUCTURE:
+```
+src/
+├── components/           # Reusable UI components
+├── contexts/            # React Context providers
+├── navigation/          # Navigation configuration
+├── screens/            # Screen components
+├── services/           # API and business logic
+├── styles/             # Theme and styling
+└── types/              # TypeScript type definitions
+```
+
+KEY CONTEXTS:
+1. AuthContext - User authentication and profile management
+2. AudioPlayerContext - Global audio playback state and controls
+
+CORE SERVICES:
+1. supabase.ts - Database client configuration
+2. trackService.ts - Track CRUD operations, likes, reposts
+3. userService.ts - User profile management, follow system
+4. commentService.ts - Comment system for tracks
+5. chatService.ts - Direct messaging between users
+6. nativeAudioService.ts - Audio playback with iOS Now Playing integration
+7. notificationService.ts - Push notifications
+
+CURRENT DATABASE SCHEMA
+================================================================================
+
+USERS TABLE:
+- id (UUID, primary key)
+- username (unique)
+- email
+- display_name
+- bio
+- profile_image_url
+- avatar_url
+- followers_count
+- following_count
+- tracks_count
+- created_at, updated_at
+
+TRACKS TABLE:
+- id (UUID, primary key)
+- user_id (foreign key to users)
+- title
+- description
+- audio_url (Supabase storage URL)
+- cover_image_url (Supabase storage URL)
+- duration (in seconds)
+- like_count
+- repost_count
+- comment_count
+- play_count
+- tags (text array)
+- snippet_start_time (for FYP previews)
+- created_at, updated_at
+
+LIKES TABLE:
+- id (UUID, primary key)
+- user_id (foreign key)
+- track_id (foreign key)
+- created_at
+
+REPOSTS TABLE:
+- id (UUID, primary key)
+- user_id (foreign key)
+- track_id (foreign key)
+- created_at
+
+COMMENTS TABLE:
+- id (UUID, primary key)
+- user_id (foreign key)
+- track_id (foreign key)
+- content (text)
+- created_at
+
+FOLLOWERS TABLE:
+- id (UUID, primary key)
+- follower_id (foreign key to users)
+- following_id (foreign key to users)
+- created_at
+
+CONVERSATIONS & MESSAGES TABLES:
+- For direct messaging system
+- conversations: id, participant_ids, last_message_at
+- messages: id, conversation_id, sender_id, content, created_at
+
+NOTIFICATIONS TABLE:
+- id, user_id, type, title, body, data, read, created_at
+
+CURRENT FEATURES IMPLEMENTED
+================================================================================
+
+AUTHENTICATION:
+- Email/password signup and login
+- User profile creation and editing
+- Profile image upload
+- Session management
+
+MUSIC FEATURES:
+- Track upload with audio file and cover image
+- Audio streaming with background playback
+- iOS Now Playing integration (works in TestFlight builds)
+- Track editing (title, description, tags)
+- FYP (For You Page) with TikTok-style vertical scrolling
+- Track detail pages with full playback controls
+
+SOCIAL FEATURES:
+- User profiles with track listings
+- Follow/unfollow system
+- Like and repost tracks
+- Comment system on tracks
+- Direct messaging between users
+- Push notifications
+
+AUDIO SYSTEM:
+- Custom nativeAudioService using expo-av
+- Background audio playback
+- iOS system integration (Control Center, Lock Screen)
+- Real-time playback position tracking
+- Automatic track progression in FYP
+
+UI/UX FEATURES:
+- Bottom audio player (persistent across screens)
+- Smooth navigation with React Navigation
+- Custom theming system
+- Responsive design
+- Keyboard handling
+- Pull-to-refresh functionality
+
+CURRENT SCREENS
+================================================================================
+
+MAIN NAVIGATION:
+1. FYPScreen - TikTok-style music discovery feed
+2. SearchScreen - Search for tracks and users
+3. UploadScreen - Upload new tracks
+4. InboxScreen - Direct messages
+5. UserProfileScreen - User profiles and track listings
+
+MODAL/STACK SCREENS:
+- TrackDetailScreen - Full track view with comments
+- EditTrackScreen - Edit track metadata
+- ChatScreen - Individual chat conversations
+- AuthScreen - Login/signup
+
+CURRENT COMPONENTS
+================================================================================
+
+AUDIO COMPONENTS:
+- BottomAudioPlayer - Persistent bottom player
+- AudioPlayerContext - Global audio state management
+
+UI COMPONENTS:
+- Button, Input - Styled form components
+- KeyboardAvoidingWrapper - Keyboard handling
+- EnhancedScrollView - Improved scrolling
+- ConversationItem, MessageBubble, MessageInput - Chat components
+
+TRACK COMPONENTS:
+- Track rendering in FYP, profiles, and detail views
+- Like, repost, comment interactions
+- Play/pause controls
+
+CURRENT STYLING SYSTEM
+================================================================================
+
+THEME STRUCTURE:
+- colors: Primary, secondary, text, background variants
+- typography: Font sizes, weights, line heights
+- spacing: Consistent padding/margin values
+- borderRadius: Consistent corner radius values
+- shadows: Elevation and shadow styles
+- componentStyles: Reusable component styles
+
+RESPONSIVE DESIGN:
+- Consistent spacing using theme values
+- Proper keyboard avoidance
+- Bottom audio player height consideration (AUDIO_PLAYER_HEIGHT = 80)
+
+CURRENT API PATTERNS
+================================================================================
+
+SERVICE PATTERN:
+All services follow consistent patterns:
+- Async/await for database operations
+- Error handling with try/catch
+- TypeScript interfaces for data structures
+- Supabase client usage with proper queries
+
+REAL-TIME FEATURES:
+- Real-time chat messages
+- Live notification updates
+- Automatic UI updates on data changes
+
+AUTHENTICATION FLOW:
+- Supabase Auth integration
+- Context-based auth state management
+- Protected routes and conditional rendering
+
+AUDIO PLAYBACK ARCHITECTURE
+================================================================================
+
+AUDIO PLAYER CONTEXT:
+- Global state for current track, playback status
+- Playlist management and track progression
+- Volume and seek controls
+- Background playback support
+
+NATIVE AUDIO SERVICE:
+- expo-av integration with iOS Now Playing
+- Background audio session configuration
+- Real-time playback status updates
+- Track loading and caching
+
+CURRENT LIMITATIONS & CONSIDERATIONS
+================================================================================
+
+EXPO GO LIMITATIONS:
+- Limited background audio capabilities
+- No full iOS Now Playing integration in development
+- Full features require TestFlight/production builds
+
+PERFORMANCE CONSIDERATIONS:
+- Large audio files require streaming optimization
+- Image loading and caching for cover art
+- FYP infinite scroll performance
+
+CURRENT BUGS FIXED:
+- Scrolling issues in TrackDetailScreen (recently fixed)
+- Background audio service conflicts (cleaned up)
+- Keyboard avoidance problems (resolved)
+
+PLAYLISTING FEATURE REQUIREMENTS
+================================================================================
+
+DESIRED FUNCTIONALITY (like SoundCloud):
+1. Create custom playlists
+2. Add/remove tracks from playlists
+3. Public/private playlist visibility
+4. Share playlists with other users
+5. Follow other users' playlists
+6. Playlist cover images
+7. Collaborative playlists (optional)
+8. Playlist categories/genres
+9. Play entire playlists with shuffle/repeat
+10. Playlist analytics (play counts, etc.)
+
+DATABASE SCHEMA ADDITIONS NEEDED:
+```sql
+-- Playlists table
+CREATE TABLE playlists (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  title VARCHAR(255) NOT NULL,
+  description TEXT,
+  cover_image_url TEXT,
+  is_public BOOLEAN DEFAULT true,
+  is_collaborative BOOLEAN DEFAULT false,
+  track_count INTEGER DEFAULT 0,
+  total_duration INTEGER DEFAULT 0, -- in seconds
+  play_count INTEGER DEFAULT 0,
+  like_count INTEGER DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Playlist tracks junction table
+CREATE TABLE playlist_tracks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  playlist_id UUID REFERENCES playlists(id) ON DELETE CASCADE,
+  track_id UUID REFERENCES tracks(id) ON DELETE CASCADE,
+  position INTEGER NOT NULL, -- order in playlist
+  added_by UUID REFERENCES users(id), -- for collaborative playlists
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(playlist_id, track_id)
+);
+
+-- Playlist likes
+CREATE TABLE playlist_likes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  playlist_id UUID REFERENCES playlists(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(user_id, playlist_id)
+);
+
+-- Playlist follows
+CREATE TABLE playlist_follows (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  playlist_id UUID REFERENCES playlists(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(user_id, playlist_id)
+);
+```
+
+INTEGRATION POINTS:
+1. AudioPlayerContext - Extend to handle playlist playback
+2. TrackService - Add playlist-related track operations
+3. UserProfileScreen - Add playlists tab
+4. SearchScreen - Add playlist search
+5. BottomAudioPlayer - Show current playlist info
+6. Navigation - Add playlist screens
+
+NEW SCREENS NEEDED:
+1. PlaylistsScreen - User's playlists overview
+2. PlaylistDetailScreen - Individual playlist view
+3. CreatePlaylistScreen - Create new playlist
+4. EditPlaylistScreen - Edit playlist metadata
+5. AddToPlaylistScreen - Modal to add tracks to playlists
+
+NEW SERVICES NEEDED:
+1. playlistService.ts - CRUD operations for playlists
+2. Extend trackService.ts - Playlist-related track operations
+3. Extend nativeAudioService.ts - Playlist playback logic
+
+CURRENT FILE LOCATIONS FOR REFERENCE:
+================================================================================
+- Main App: App.tsx
+- Navigation: src/navigation/AppNavigator.tsx
+- Audio Context: src/contexts/AudioPlayerContext.tsx
+- Auth Context: src/contexts/AuthContext.tsx
+- Track Service: src/services/trackService.ts
+- Database Types: src/types/index.ts
+- Theme: src/styles/theme.ts
+- Supabase Config: src/services/supabase.ts
+
+DEVELOPMENT WORKFLOW:
+================================================================================
+- Use npm start to run Expo development server
+- Test in Expo Go for development
+- Use TestFlight builds for full iOS integration testing
+- Supabase dashboard for database management
+- Git workflow on feature branches
+
+NEXT STEPS FOR PLAYLISTING:
+================================================================================
+1. Create database migrations for playlist tables
+2. Implement playlistService with CRUD operations
+3. Create playlist UI screens and components
+4. Extend AudioPlayerContext for playlist playback
+5. Add playlist integration to existing screens
+6. Implement playlist sharing and social features
+7. Add playlist management to user profiles
+8. Test playlist playback with audio system
+
+This summary provides all the context needed to implement a comprehensive playlisting feature that integrates seamlessly with the existing DanCloud architecture. 

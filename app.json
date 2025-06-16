@@ -23,7 +23,8 @@
         "NSMicrophoneUsageDescription": "This app needs access to microphone to record audio tracks.",
         "NSCameraUsageDescription": "This app needs access to camera to take profile photos and cover art.",
         "NSPhotoLibraryUsageDescription": "This app needs access to photo library to select profile photos and cover art.",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIBackgroundModes": ["audio"]
       }
     },
     "android": {

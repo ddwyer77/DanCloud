@@ -57,6 +57,8 @@ export const trackService = {
     }));
   },
 
+  // NOTE: getFYPTracks method preserved for future FYP redevelopment
+  // Currently unused as FYP screen is disabled due to audio issues
   // Get randomized tracks for FYP (For You Page)
   async getFYPTracks(userId?: string, limit: number = 20, offset: number = 0): Promise<Track[]> {
     // Get random tracks using a random order

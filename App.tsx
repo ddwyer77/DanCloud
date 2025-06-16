@@ -5,6 +5,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { Platform } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 // Import contexts
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
@@ -15,7 +16,7 @@ import BottomAudioPlayer from './src/components/BottomAudioPlayer';
 
 // Import screens
 import FeedScreen from './src/screens/FeedScreen';
-import FYPScreen from './src/screens/FYPScreen';
+// import FYPScreen from './src/screens/FYPScreen'; // TEMPORARILY DISABLED - See FYPScreen.tsx for details
 import UploadScreen from './src/screens/UploadScreen';
 import SearchScreen from './src/screens/SearchScreen';
 import NotificationsScreen from './src/screens/NotificationsScreen';
@@ -28,6 +29,14 @@ import EditProfileScreen from './src/screens/EditProfileScreen';
 import FollowersListScreen from './src/screens/FollowersListScreen';
 import EditTrackScreen from './src/screens/EditTrackScreen';
 import LoadingScreen from './src/screens/LoadingScreen';
+import ChatScreen from './src/screens/ChatScreen';
+
+// Playlist screens
+import PlaylistsScreen from './src/screens/PlaylistsScreen';
+import CreatePlaylistScreen from './src/screens/CreatePlaylistScreen';
+import PlaylistDetailScreen from './src/screens/PlaylistDetailScreen';
+import AddToPlaylistScreen from './src/screens/AddToPlaylistScreen';
+import InboxScreen from './src/screens/InboxScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -43,10 +52,12 @@ function MainTabs() {
             iconName = focused ? 'home' : 'home-outline';
           } else if (route.name === 'Search') {
             iconName = focused ? 'search' : 'search-outline';
-          } else if (route.name === 'FYP') {
-            iconName = focused ? 'musical-notes' : 'musical-notes-outline';
+          } else if (route.name === 'Playlists') {
+            iconName = focused ? 'list' : 'list-outline';
           } else if (route.name === 'Upload') {
             iconName = focused ? 'add-circle' : 'add-circle-outline';
+          } else if (route.name === 'Inbox') {
+            iconName = focused ? 'mail' : 'mail-outline';
           } else if (route.name === 'Profile') {
             iconName = focused ? 'person' : 'person-outline';
           } else {
@@ -62,8 +73,9 @@ function MainTabs() {
     >
       <Tab.Screen name="Feed" component={FeedScreen} />
       <Tab.Screen name="Search" component={SearchScreen} />
-      <Tab.Screen name="FYP" component={FYPScreen} />
+      <Tab.Screen name="Playlists" component={PlaylistsScreen} />
       <Tab.Screen name="Upload" component={UploadScreen} />
+      <Tab.Screen name="Inbox" component={InboxScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
@@ -107,6 +119,26 @@ function AuthenticatedNavigator() {
         component={NotificationsScreen}
         options={{ title: 'Notifications' }}
       />
+      <Stack.Screen 
+        name="Chat" 
+        component={ChatScreen}
+        options={{ title: 'Chat' }}
+      />
+      <Stack.Screen 
+        name="CreatePlaylist" 
+        component={CreatePlaylistScreen} 
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="PlaylistDetail" 
+        component={PlaylistDetailScreen} 
+        options={{ title: 'Playlist' }}
+      />
+      <Stack.Screen 
+        name="AddToPlaylist" 
+        component={AddToPlaylistScreen} 
+        options={{ headerShown: false }}
+      />
     </Stack.Navigator>
   );
 }
@@ -140,14 +172,16 @@ function AppNavigator() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <NavigationContainer>
-        <AudioPlayerProvider>
-          <AppNavigator />
-          <BottomAudioPlayer />
-        </AudioPlayerProvider>
-        <StatusBar style="auto" />
-      </NavigationContainer>
-    </AuthProvider>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <NavigationContainer>
+          <AudioPlayerProvider>
+            <AppNavigator />
+            <BottomAudioPlayer />
+          </AudioPlayerProvider>
+          <StatusBar style="auto" />
+        </NavigationContainer>
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }

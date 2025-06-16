@@ -22,6 +22,8 @@ const BottomAudioPlayer = () => {
     duration,
     isLoading,
     isShuffleEnabled,
+    isRepeatEnabled,
+    currentPlaylist,
     pauseTrack,
     resumeTrack,
     seekTo,
@@ -29,6 +31,7 @@ const BottomAudioPlayer = () => {
     playNext,
     playPrevious,
     toggleShuffle,
+    toggleRepeat,
   } = useAudioPlayer();
 
   // Don't render if no track is loaded
@@ -61,14 +64,17 @@ const BottomAudioPlayer = () => {
     <View style={styles.container}>
       {/* Progress Bar */}
       <View style={styles.progressContainer}>
+        {/* Custom progress background that extends to edges */}
+        <View style={styles.progressBackground} />
+        <View style={[styles.progressTrack, { width: `${progressPercent * 100}%` }]} />
         <Slider
           style={styles.slider}
           minimumValue={0}
           maximumValue={duration}
           value={position}
           onSlidingComplete={handleSeek}
-          minimumTrackTintColor="#ff5500"
-          maximumTrackTintColor="#ccc"
+          minimumTrackTintColor="transparent"
+          maximumTrackTintColor="transparent"
           thumbTintColor="#ff5500"
         />
       </View>
@@ -88,7 +94,9 @@ const BottomAudioPlayer = () => {
               {currentTrack.title}
             </Text>
             <Text style={styles.artistName} numberOfLines={1}>
-              {currentTrack.user?.username || 'Unknown Artist'}
+              {currentPlaylist 
+                ? `${currentTrack.user?.username || 'Unknown Artist'} • ${currentPlaylist.title}`
+                : currentTrack.user?.username || 'Unknown Artist'}
             </Text>
           </View>
         </View>
@@ -147,6 +155,18 @@ const BottomAudioPlayer = () => {
               />
             </TouchableOpacity>
 
+            {/* Repeat */}
+            <TouchableOpacity 
+              style={styles.controlButton} 
+              onPress={toggleRepeat}
+            >
+              <Ionicons 
+                name="repeat" 
+                size={18} 
+                color={isRepeatEnabled ? "#ff5500" : "#ccc"} 
+              />
+            </TouchableOpacity>
+
             {/* Close/Stop */}
             <TouchableOpacity
               style={styles.controlButton}
@@ -168,8 +188,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -182,11 +200,35 @@ const styles = StyleSheet.create({
   progressContainer: {
     height: 4,
     backgroundColor: '#f0f0f0',
+    width: '100%',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1,
+  },
+  progressBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#f0f0f0',
+  },
+  progressTrack: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    bottom: 0,
+    backgroundColor: '#ff5500',
   },
   slider: {
     width: '100%',
     height: 4,
-    marginTop: -2,
+    marginTop: -10,
+    marginBottom: -10,
+    marginLeft: -16,
+    marginRight: -16,
   },
   sliderThumb: {
     backgroundColor: '#ff5500',
@@ -201,7 +243,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    paddingBottom: 12, // Removed extra padding since we're above tab bar now
+    paddingTop: 16,
+    paddingBottom: 12,
   },
   trackInfo: {
     flex: 1,

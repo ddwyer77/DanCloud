@@ -17,12 +17,20 @@ import FeedScreen from '../screens/FeedScreen';
 import UploadScreen from '../screens/UploadScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
+import InboxScreen from '../screens/InboxScreen';
 
 // Detail Screens
 import TrackDetailScreen from '../screens/TrackDetailScreen';
 import UserProfileScreen from '../screens/UserProfileScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
 import FollowersListScreen from '../screens/FollowersListScreen';
+import ChatScreen from '../screens/ChatScreen';
+
+// Playlist Screens
+import PlaylistsScreen from '../screens/PlaylistsScreen';
+import CreatePlaylistScreen from '../screens/CreatePlaylistScreen';
+import PlaylistDetailScreen from '../screens/PlaylistDetailScreen';
+import AddToPlaylistScreen from '../screens/AddToPlaylistScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -43,8 +51,12 @@ const MainTabs = () => (
 
         if (route.name === 'Feed') {
           iconName = focused ? 'home' : 'home-outline';
+        } else if (route.name === 'Playlists') {
+          iconName = focused ? 'list' : 'list-outline';
         } else if (route.name === 'Upload') {
           iconName = focused ? 'add-circle' : 'add-circle-outline';
+        } else if (route.name === 'Inbox') {
+          iconName = focused ? 'mail' : 'mail-outline';
         } else if (route.name === 'Notifications') {
           iconName = focused ? 'notifications' : 'notifications-outline';
         } else if (route.name === 'Profile') {
@@ -61,7 +73,9 @@ const MainTabs = () => (
     })}
   >
     <Tab.Screen name="Feed" component={FeedScreen} />
+    <Tab.Screen name="Playlists" component={PlaylistsScreen} />
     <Tab.Screen name="Upload" component={UploadScreen} />
+    <Tab.Screen name="Inbox" component={InboxScreen} />
     <Tab.Screen name="Notifications" component={NotificationsScreen} />
     <Tab.Screen name="Profile" component={ProfileScreen} />
   </Tab.Navigator>
@@ -74,6 +88,28 @@ const MainStack = () => (
     <Stack.Screen name="UserProfile" component={UserProfileScreen} />
     <Stack.Screen name="EditProfile" component={EditProfileScreen} />
     <Stack.Screen name="FollowersList" component={FollowersListScreen} />
+    <Stack.Screen 
+      name="Chat" 
+      component={ChatScreen} 
+      options={{ headerShown: false }}
+    />
+    <Stack.Screen 
+      name="CreatePlaylist" 
+      component={CreatePlaylistScreen} 
+      options={{ headerShown: false }}
+    />
+    <Stack.Screen 
+      name="PlaylistDetail" 
+      component={PlaylistDetailScreen} 
+      options={{ title: 'Playlist' }}
+    />
+    <Stack.Screen 
+      name="AddToPlaylist" 
+      component={AddToPlaylistScreen} 
+      options={{ 
+        headerShown: false
+      }}
+    />
   </Stack.Navigator>
 );
 

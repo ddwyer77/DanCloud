@@ -79,6 +79,34 @@ export interface Notification {
   track?: Track;
 }
 
+// Chat-related types
+export interface Conversation {
+  id: string;
+  participant_1_id: string;
+  participant_2_id: string;
+  last_message_id?: string;
+  last_message_at?: string;
+  created_at: string;
+  updated_at: string;
+  // Joined data
+  other_user?: User;
+  last_message?: Message;
+  unread_count?: number;
+}
+
+export interface Message {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  content: string;
+  message_type: 'text';
+  is_read: boolean;
+  created_at: string;
+  updated_at: string;
+  // Joined data
+  sender?: User;
+}
+
 export interface AuthUser {
   id: string;
   email: string;
@@ -109,4 +137,77 @@ export interface TrackUploadData {
   };
   snippetStartTime?: number;
   snippetEndTime?: number;
+}
+
+// Playlist-related types
+export interface Playlist {
+  id: string;
+  user_id: string;
+  title: string;
+  description?: string;
+  cover_image_url?: string;
+  is_public: boolean;
+  is_collaborative: boolean;
+  track_count: number;
+  total_duration: number; // in seconds
+  play_count: number;
+  like_count: number;
+  follow_count: number;
+  created_at: string;
+  updated_at: string;
+  user?: User;
+  tracks?: PlaylistTrack[];
+  is_liked?: boolean;
+  is_followed?: boolean;
+}
+
+export interface PlaylistTrack {
+  id: string;
+  playlist_id: string;
+  track_id: string;
+  position: number;
+  added_by?: string;
+  created_at: string;
+  track?: Track;
+  added_by_user?: User;
+}
+
+export interface PlaylistLike {
+  id: string;
+  user_id: string;
+  playlist_id: string;
+  created_at: string;
+  user?: User;
+}
+
+export interface PlaylistFollow {
+  id: string;
+  user_id: string;
+  playlist_id: string;
+  created_at: string;
+  user?: User;
+}
+
+export interface CreatePlaylistData {
+  title: string;
+  description?: string;
+  is_public: boolean;
+  is_collaborative: boolean;
+  coverImageFile?: {
+    uri: string;
+    name: string;
+    type: string;
+  };
+}
+
+export interface UpdatePlaylistData {
+  title?: string;
+  description?: string;
+  is_public?: boolean;
+  is_collaborative?: boolean;
+  coverImageFile?: {
+    uri: string;
+    name: string;
+    type: string;
+  };
 } 

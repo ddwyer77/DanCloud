@@ -1,0 +1,384 @@
+# DanCloud - Inbox & Chat Feature Implementation Prompt
+
+## 🎯 **OBJECTIVE**
+Implement a comprehensive inbox and direct messaging system for DanCloud, allowing users to send private messages to each other and view them in a dedicated inbox interface.
+
+---
+
+## 📱 **APP CONTEXT & ARCHITECTURE**
+
+### **Current App Overview**
+DanCloud is a React Native music sharing app (similar to SoundCloud) built with:
+- **Frontend**: React Native 0.79.3 + Expo ~53.0.11 + TypeScript
+- **Backend**: Supabase (PostgreSQL + Auth + Storage + Real-time)
+- **Navigation**: React Navigation v7 (Stack + Bottom Tabs)
+- **State Management**: React Context (AuthContext, AudioPlayerContext)
+- **UI**: React Native Elements + Custom Components + Ionicons
+
+### **Current Navigation Structure**
+```
+AuthenticatedNavigator (Stack)
+├── Main (Bottom Tabs)
+│   ├── Feed - Home feed with tracks from followed users
+│   ├── Search - Search tracks and users (with notifications button)
+│   ├── FYP - For You Page with swipeable track discovery
+│   ├── Upload - Upload new music tracks
+│   └── Profile - User's own profile and settings
+├── TrackDetail - Individual track view with comments
+├── UserProfile - Other user profiles
+├── EditProfile - Edit current user profile
+├── EditTrack - Edit track details
+├── FollowersList - View followers/following lists
+└── Notifications - Social notifications (likes, comments, follows)
+```
+
+### **Current Database Schema (Supabase)**
+```sql
+-- Core Tables
+users (id, email, username, display_name, bio, avatar_url, followers_count, following_count, tracks_count)
+tracks (id, user_id, title, description, audio_url, cover_image_url, duration, genre, tags[], plays_count, likes_count, reposts_count, comments_count, snippet_start_time, snippet_end_time)
+follows (id, follower_id, following_id)
+likes (id, user_id, track_id)
+reposts (id, user_id, track_id)
+comments (id, user_id, track_id, content)
+notifications (id, user_id, type, message, related_user_id, related_track_id, is_read)
+
+-- Storage Buckets
+audio (50MB limit) - Music files
+images (10MB limit) - Profile pictures, cover art
+```
+
+### **Authentication System**
+- **AuthContext**: Manages user session, profile, sign in/out, registration
+- **User Types**: Authenticated users with UUID-based IDs
+- **RLS Policies**: Row Level Security enabled for all tables
+- **Real-time**: Enabled for notifications and comments
+
+### **Service Layer Pattern**
+Current services follow this pattern:
+```typescript
+// Example: src/services/userService.ts
+export const userService = {
+  async getUserById(userId: string): Promise<User> { ... },
+  async searchUsers(query: string): Promise<User[]> { ... },
+  // ... other methods
+};
+```
+
+### **UI/UX Patterns**
+- **Consistent Headers**: All main screens have headers with notifications buttons
+- **Bottom Audio Player**: Global audio player that affects screen padding
+- **Keyboard Handling**: KeyboardAvoidingView + TouchableWithoutFeedback patterns
+- **Loading States**: Consistent loading indicators and error handling
+- **Real-time Updates**: Used for notifications and comments
+
+---
+
+## 🎯 **FEATURE REQUIREMENTS**
+
+### **1. Inbox Screen**
+- **Location**: Add as new bottom tab (replace or add alongside existing tabs)
+- **Icon**: Use `mail` or `chatbubbles` Ionicon
+- **Functionality**:
+  - List all conversations with other users
+  - Show last message preview and timestamp
+  - Show unread message count per conversation
+  - Show user avatar, username, and online status (if possible)
+  - Pull-to-refresh functionality
+  - Search conversations by username
+  - Real-time updates for new messages
+
+### **2. Chat Screen**
+- **Navigation**: Stack screen accessible from Inbox
+- **Functionality**:
+  - Full conversation view between two users
+  - Message bubbles (sent vs received styling)
+  - Real-time message sending and receiving
+  - Message timestamps
+  - Message status indicators (sent, delivered, read - if feasible)
+  - Text input with send button
+  - Auto-scroll to bottom on new messages
+  - Pull-to-refresh for message history
+  - Header with other user's info and back button
+
+### **3. Message Composition**
+- **Access Points**: 
+  - From user profiles (add "Message" button)
+  - From search results
+  - From inbox (new conversation button)
+- **Features**:
+  - Start new conversations
+  - Rich text input with emoji support (if possible)
+  - Character limit (reasonable limit like 1000 chars)
+
+---
+
+## 🗄️ **DATABASE DESIGN REQUIREMENTS**
+
+### **New Tables Needed**
+```sql
+-- Conversations table
+conversations (
+  id UUID PRIMARY KEY,
+  participant_1_id UUID REFERENCES users(id),
+  participant_2_id UUID REFERENCES users(id),
+  last_message_id UUID REFERENCES messages(id),
+  last_message_at TIMESTAMP,
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP,
+  UNIQUE(participant_1_id, participant_2_id) -- Ensure unique conversations
+);
+
+-- Messages table
+messages (
+  id UUID PRIMARY KEY,
+  conversation_id UUID REFERENCES conversations(id),
+  sender_id UUID REFERENCES users(id),
+  content TEXT NOT NULL,
+  message_type TEXT DEFAULT 'text', -- Future: 'text', 'image', 'audio'
+  is_read BOOLEAN DEFAULT false,
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP
+);
+```
+
+### **Indexes for Performance**
+```sql
+CREATE INDEX idx_conversations_participant_1 ON conversations(participant_1_id);
+CREATE INDEX idx_conversations_participant_2 ON conversations(participant_2_id);
+CREATE INDEX idx_conversations_last_message_at ON conversations(last_message_at DESC);
+CREATE INDEX idx_messages_conversation_id ON messages(conversation_id);
+CREATE INDEX idx_messages_sender_id ON messages(sender_id);
+CREATE INDEX idx_messages_created_at ON messages(created_at DESC);
+CREATE INDEX idx_messages_is_read ON messages(is_read);
+```
+
+### **RLS Policies**
+- Users can only see conversations they participate in
+- Users can only see messages from their conversations
+- Users can only send messages as themselves
+- Users can only mark their received messages as read
+
+---
+
+## 🔧 **TECHNICAL IMPLEMENTATION REQUIREMENTS**
+
+### **1. Service Layer**
+Create `src/services/chatService.ts` with methods:
+```typescript
+export const chatService = {
+  // Conversations
+  async getUserConversations(userId: string): Promise<Conversation[]>,
+  async getOrCreateConversation(user1Id: string, user2Id: string): Promise<Conversation>,
+  async deleteConversation(conversationId: string): Promise<void>,
+  
+  // Messages
+  async getConversationMessages(conversationId: string, limit?: number): Promise<Message[]>,
+  async sendMessage(conversationId: string, senderId: string, content: string): Promise<Message>,
+  async markMessagesAsRead(conversationId: string, userId: string): Promise<void>,
+  async getUnreadMessageCount(userId: string): Promise<number>,
+  
+  // Real-time subscriptions
+  subscribeToConversations(userId: string, callback: (conversations: Conversation[]) => void),
+  subscribeToMessages(conversationId: string, callback: (messages: Message[]) => void),
+};
+```
+
+### **2. Type Definitions**
+Add to `src/types/index.ts`:
+```typescript
+export interface Conversation {
+  id: string;
+  participant_1_id: string;
+  participant_2_id: string;
+  last_message_id?: string;
+  last_message_at?: string;
+  created_at: string;
+  updated_at: string;
+  // Joined data
+  other_user?: User;
+  last_message?: Message;
+  unread_count?: number;
+}
+
+export interface Message {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  content: string;
+  message_type: 'text';
+  is_read: boolean;
+  created_at: string;
+  updated_at: string;
+  // Joined data
+  sender?: User;
+}
+```
+
+### **3. Real-time Implementation**
+- Use Supabase real-time subscriptions for live chat
+- Subscribe to conversation changes in InboxScreen
+- Subscribe to message changes in ChatScreen
+- Handle connection states and reconnection
+
+### **4. Navigation Updates**
+- Add Inbox tab to bottom navigation
+- Add ChatScreen to stack navigator
+- Update navigation types
+- Add message button to UserProfileScreen
+
+### **5. UI Components**
+Create reusable components:
+- `ConversationItem` - For inbox list items
+- `MessageBubble` - For individual messages
+- `MessageInput` - For composing messages
+- `ChatHeader` - For chat screen header
+
+---
+
+## 🎨 **UI/UX DESIGN REQUIREMENTS**
+
+### **Design Consistency**
+- Follow existing app design patterns
+- Use consistent colors, fonts, and spacing
+- Match existing header styles with notifications buttons
+- Respect bottom audio player spacing
+- Use Ionicons for all icons
+
+### **Inbox Screen Design**
+- Clean list layout similar to notifications
+- User avatars on the left
+- Username and last message preview
+- Timestamp on the right
+- Unread count badge
+- Swipe actions (delete conversation)
+
+### **Chat Screen Design**
+- Message bubbles: sent (right, blue), received (left, gray)
+- Timestamps below messages
+- Input at bottom with send button
+- Header with user info and back button
+- Auto-scroll behavior
+- Loading states for message history
+
+### **Responsive Design**
+- Handle different screen sizes
+- Keyboard avoidance for message input
+- Safe area handling
+- Proper padding for bottom audio player
+
+---
+
+## 🔄 **REAL-TIME FEATURES**
+
+### **Required Real-time Updates**
+1. **New message notifications** in inbox
+2. **Live message delivery** in chat screens
+3. **Typing indicators** (optional, advanced)
+4. **Online status** (optional, advanced)
+5. **Message read receipts** (optional, advanced)
+
+### **Supabase Real-time Setup**
+- Enable real-time for conversations and messages tables
+- Handle subscription cleanup on component unmount
+- Manage connection states and errors
+- Optimize for battery life and performance
+
+---
+
+## 🧪 **TESTING REQUIREMENTS**
+
+### **Test Scenarios**
+1. **Create new conversation** from user profile
+2. **Send and receive messages** in real-time
+3. **Navigate between inbox and chat** screens
+4. **Handle offline/online states**
+5. **Message persistence** after app restart
+6. **Unread count accuracy**
+7. **Performance with large message history**
+
+### **Edge Cases**
+- Empty inbox state
+- Network connectivity issues
+- Very long messages
+- Rapid message sending
+- User blocking (future consideration)
+
+---
+
+## 📋 **IMPLEMENTATION CHECKLIST**
+
+### **Phase 1: Database & Services**
+- [ ] Create database migration for conversations and messages tables
+- [ ] Set up RLS policies for chat tables
+- [ ] Implement chatService with all required methods
+- [ ] Add chat types to type definitions
+- [ ] Test database operations and permissions
+
+### **Phase 2: Basic UI**
+- [ ] Create InboxScreen with conversation list
+- [ ] Create ChatScreen with message display
+- [ ] Add Inbox tab to bottom navigation
+- [ ] Add ChatScreen to stack navigator
+- [ ] Implement basic message sending/receiving
+
+### **Phase 3: Real-time Features**
+- [ ] Set up Supabase real-time subscriptions
+- [ ] Implement live message updates
+- [ ] Add unread count functionality
+- [ ] Test real-time performance
+
+### **Phase 4: Polish & Integration**
+- [ ] Add message button to user profiles
+- [ ] Implement conversation search
+- [ ] Add proper loading and error states
+- [ ] Optimize performance and memory usage
+- [ ] Test on different devices and screen sizes
+
+---
+
+## 🚨 **IMPORTANT CONSIDERATIONS**
+
+### **Performance**
+- Implement message pagination for large conversations
+- Use FlatList with proper optimization for message lists
+- Clean up real-time subscriptions properly
+- Consider message caching strategies
+
+### **Security**
+- Ensure RLS policies prevent unauthorized access
+- Validate message content on client and server
+- Consider rate limiting for message sending
+- Plan for spam prevention
+
+### **User Experience**
+- Maintain consistency with existing app patterns
+- Provide clear feedback for all actions
+- Handle network errors gracefully
+- Consider accessibility requirements
+
+### **Future Extensibility**
+- Design database schema to support future features:
+  - Message reactions
+  - File/image sharing
+  - Group chats
+  - Message search
+  - User blocking
+
+---
+
+## 🎯 **SUCCESS CRITERIA**
+
+The implementation will be considered successful when:
+1. ✅ Users can start new conversations from user profiles
+2. ✅ Users can view all their conversations in the inbox
+3. ✅ Users can send and receive messages in real-time
+4. ✅ Unread message counts are accurate and update live
+5. ✅ The UI is consistent with the existing app design
+6. ✅ Performance is smooth with reasonable message history
+7. ✅ All real-time subscriptions work reliably
+8. ✅ The feature integrates seamlessly with existing navigation
+
+---
+
+**This prompt provides comprehensive context about the DanCloud app architecture, current implementation patterns, and detailed requirements for implementing a robust inbox and chat system. Use this information to build a feature that feels native to the existing app while providing excellent real-time messaging capabilities.** 

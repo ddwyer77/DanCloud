@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { userService } from '../services/userService';
 import { trackService } from '../services/trackService';
+import { chatService } from '../services/chatService';
 import TrackCard from '../components/TrackCard';
 import { User, Track } from '../types';
 
@@ -75,6 +76,18 @@ const UserProfileScreen = ({ route, navigation }: any) => {
     } catch (error) {
       console.error('Error toggling follow:', error);
       Alert.alert('Error', 'Failed to update follow status');
+    }
+  };
+
+  const handleMessage = async () => {
+    if (!currentUser || !user) return;
+
+    try {
+      const conversation = await chatService.getOrCreateConversation(currentUser.id, user.id);
+      navigation.navigate('Chat', { conversation });
+    } catch (error) {
+      console.error('Error creating conversation:', error);
+      Alert.alert('Error', 'Failed to start conversation');
     }
   };
 
@@ -150,14 +163,24 @@ const UserProfileScreen = ({ route, navigation }: any) => {
         </View>
 
         {currentUser && currentUser.id !== user.id && (
-          <TouchableOpacity
-            style={[styles.followButton, isFollowing && styles.followingButton]}
-            onPress={handleFollow}
-          >
-            <Text style={[styles.followButtonText, isFollowing && styles.followingButtonText]}>
-              {isFollowing ? 'Following' : 'Follow'}
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.actionButtons}>
+            <TouchableOpacity
+              style={[styles.followButton, isFollowing && styles.followingButton]}
+              onPress={handleFollow}
+            >
+              <Text style={[styles.followButtonText, isFollowing && styles.followingButtonText]}>
+                {isFollowing ? 'Following' : 'Follow'}
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.messageButton}
+              onPress={handleMessage}
+            >
+              <Ionicons name="mail-outline" size={20} color="#007AFF" />
+              <Text style={styles.messageButtonText}>Message</Text>
+            </TouchableOpacity>
+          </View>
         )}
         
         <View style={styles.sectionHeader}>
@@ -290,7 +313,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     paddingVertical: 12,
     borderRadius: 24,
-    marginBottom: 20,
+    flex: 1,
+    marginRight: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   followingButton: {
     backgroundColor: '#fff',
@@ -338,6 +364,29 @@ const styles = StyleSheet.create({
     color: '#999',
     textAlign: 'center',
     lineHeight: 22,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    width: '100%',
+    marginBottom: 20,
+  },
+  messageButton: {
+    backgroundColor: '#34C759',
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    borderRadius: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+    marginLeft: 8,
+  },
+  messageButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
   },
 });
 
