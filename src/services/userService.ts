@@ -241,7 +241,7 @@ export const userService = {
       .eq('id', followerId);
   },
 
-  // Create notification
+  // Create notification (delegates to central notification service for consistency & push)
   async createNotification(notification: {
     type: 'follow' | 'like' | 'comment' | 'repost';
     user_id: string;
@@ -249,11 +249,8 @@ export const userService = {
     message: string;
     related_track_id?: string;
   }): Promise<void> {
-    const { error } = await supabase
-      .from('notifications')
-      .insert([notification]);
-
-    if (error) throw new Error(error.message);
+    const { notificationService } = await import('./notificationService');
+    await notificationService.createNotification(notification);
   },
 
   // Search users

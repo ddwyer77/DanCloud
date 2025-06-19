@@ -6,9 +6,11 @@ import {
   Dimensions,
   SafeAreaView,
   TouchableOpacity,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface RouteParams {
   imageUrl: string;
@@ -19,16 +21,26 @@ const ViewImageScreen: React.FC = () => {
   const route = useRoute();
   const { imageUrl } = route.params as RouteParams;
 
+  // Safely position close button below notch if needed
+  const insets = useSafeAreaInsets();
+
   return (
     <SafeAreaView style={styles.container}>
-      <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+      <TouchableOpacity
+        style={[styles.backButton, { top: insets.top + 10 }]}
+        onPress={() => navigation.goBack()}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+      >
         <Ionicons name="arrow-back" size={28} color="#fff" />
       </TouchableOpacity>
-      <Image
-        source={{ uri: imageUrl }}
-        style={styles.image}
-        resizeMode="contain"
-      />
+      {/* Allow tapping anywhere on the image to dismiss */}
+      <TouchableWithoutFeedback onPress={() => navigation.goBack()}>
+        <Image
+          source={{ uri: imageUrl }}
+          style={styles.image}
+          resizeMode="contain"
+        />
+      </TouchableWithoutFeedback>
     </SafeAreaView>
   );
 };
@@ -48,7 +60,6 @@ const styles = StyleSheet.create({
   },
   backButton: {
     position: 'absolute',
-    top: 40,
     left: 16,
     zIndex: 2,
   },

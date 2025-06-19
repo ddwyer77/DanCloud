@@ -45,13 +45,13 @@ const TrackCard: React.FC<TrackCardProps> = ({
   };
 
   const formatCount = (count: number | undefined) => {
-    if (!count || count === 0) return '0';
-    if (count >= 1000000) {
-      return `${(count / 1000000).toFixed(1)}M`;
-    } else if (count >= 1000) {
-      return `${(count / 1000).toFixed(1)}K`;
+    const safeCount = typeof count === 'number' && !isNaN(count) ? count : 0;
+    if (safeCount >= 1000000) {
+      return `${(safeCount / 1000000).toFixed(1)}M`;
+    } else if (safeCount >= 1000) {
+      return `${(safeCount / 1000).toFixed(1)}K`;
     }
-    return count.toString();
+    return safeCount.toString();
   };
 
   return (

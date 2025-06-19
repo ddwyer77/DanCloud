@@ -18,6 +18,8 @@ interface Props {
   onPressUser?: () => void;
   onPressImage?: () => void;
   onPress?: () => void;
+  onDelete?: () => void;
+  currentUserId?: string;
 }
 
 // Simple time-ago formatting (seconds/minutes/hours/days)
@@ -44,7 +46,17 @@ const QuotedPreview: React.FC<{ tweet: Tweet }> = ({ tweet }) => (
   </View>
 );
 
-const TweetCard: React.FC<Props> = ({ tweet, onLike, onComment, onRepost, onQuote, onPressUser, onPressImage, onPress }) => {
+const formatCount = (count: number | undefined | null) => {
+  const safeCount = typeof count === 'number' && !isNaN(count) ? count : 0;
+  if (safeCount >= 1000000) {
+    return `${(safeCount / 1000000).toFixed(1)}M`;
+  } else if (safeCount >= 1000) {
+    return `${(safeCount / 1000).toFixed(1)}K`;
+  }
+  return safeCount.toString();
+};
+
+const TweetCard: React.FC<Props> = ({ tweet, onLike, onComment, onRepost, onQuote, onPressUser, onPressImage, onPress, onDelete, currentUserId }) => {
   return (
     <TouchableOpacity activeOpacity={0.8} onPress={onPress} style={styles.container}>
       <TouchableOpacity onPress={onPressUser}>
@@ -62,6 +74,17 @@ const TweetCard: React.FC<Props> = ({ tweet, onLike, onComment, onRepost, onQuot
           </TouchableOpacity>
           <Text style={styles.dot}>•</Text>
           <Text style={styles.timestamp}>{timeAgo(tweet.created_at)}</Text>
+          {currentUserId && currentUserId === tweet.user_id && onDelete && (
+            <TouchableOpacity
+              onPress={event => {
+                event.stopPropagation();
+                onDelete();
+              }}
+              style={{ marginLeft: 'auto', padding: 4 }}
+            >
+              <Ionicons name="trash-outline" size={18} color="#E0245E" />
+            </TouchableOpacity>
+          )}
         </View>
 
         <Text style={styles.contentText}>{tweet.content}</Text>
@@ -83,7 +106,7 @@ const TweetCard: React.FC<Props> = ({ tweet, onLike, onComment, onRepost, onQuot
             }}
           >
             <Ionicons name="chatbubble-outline" size={18} color="#666" />
-            <Text style={styles.actionCount}>{tweet.comment_count}</Text>
+            <Text style={styles.actionCount}>{formatCount(tweet.comment_count)}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -98,7 +121,7 @@ const TweetCard: React.FC<Props> = ({ tweet, onLike, onComment, onRepost, onQuot
               size={18}
               color={tweet.is_reposted ? '#1DA1F2' : '#666'}
             />
-            <Text style={styles.actionCount}>{tweet.repost_count}</Text>
+            <Text style={styles.actionCount}>{formatCount(tweet.repost_count)}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -123,7 +146,7 @@ const TweetCard: React.FC<Props> = ({ tweet, onLike, onComment, onRepost, onQuot
               size={18}
               color={tweet.is_liked ? '#E0245E' : '#666'}
             />
-            <Text style={styles.actionCount}>{tweet.like_count}</Text>
+            <Text style={styles.actionCount}>{formatCount(tweet.like_count)}</Text>
           </TouchableOpacity>
         </View>
       </View>

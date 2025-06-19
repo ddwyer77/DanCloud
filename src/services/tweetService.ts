@@ -28,6 +28,9 @@ export const tweetService = {
 
     return (data || []).map((tweet: any) => ({
       ...tweet,
+      like_count: tweet.like_count || 0,
+      comment_count: tweet.comment_count || 0,
+      repost_count: tweet.repost_count || 0,
       is_liked: userId ? tweet.likes?.some((l: any) => l.user_id === userId) : false,
       is_reposted: userId ? tweet.reposts?.some((r: any) => r.user_id === userId) : false,
     }));
@@ -104,6 +107,23 @@ export const tweetService = {
         .from('tweet_likes')
         .insert({ tweet_id: tweetId, user_id: userId });
       if (insertError) throw new Error(insertError.message);
+
+      // Fetch tweet to get owner id
+      const { data: tweetData } = await supabase
+        .from('tweets')
+        .select('user_id, content')
+        .eq('id', tweetId)
+        .single();
+
+      if (tweetData && tweetData.user_id !== userId) {
+        const { notificationService } = await import('./notificationService');
+        await notificationService.createNotification({
+          type: 'like',
+          user_id: tweetData.user_id, // receiver
+          related_user_id: userId,    // liker
+          message: 'liked your tweet',
+        });
+      }
       return true;
     }
   },
@@ -155,6 +175,9 @@ export const tweetService = {
 
     return {
       ...data,
+      like_count: data.like_count || 0,
+      comment_count: data.comment_count || 0,
+      repost_count: data.repost_count || 0,
       is_liked: currentUserId ? data.likes?.some((l: any) => l.user_id === currentUserId) : false,
       is_reposted: currentUserId ? data.reposts?.some((r: any) => r.user_id === currentUserId) : false,
     } as Tweet;
@@ -189,6 +212,24 @@ export const tweetService = {
       .single();
 
     if (error) throw new Error(error.message);
+
+    // Fetch tweet owner
+    const { data: tweetData } = await supabase
+      .from('tweets')
+      .select('user_id')
+      .eq('id', tweetId)
+      .single();
+
+    if (tweetData && tweetData.user_id !== userId) {
+      const { notificationService } = await import('./notificationService');
+      await notificationService.createNotification({
+        type: 'comment',
+        user_id: tweetData.user_id,
+        related_user_id: userId,
+        message: 'commented on your tweet',
+      });
+    }
+
     return data as any;
   },
 
@@ -201,5 +242,29 @@ export const tweetService = {
   ): Promise<Tweet> {
     // Reuse createTweet but mark as repost and reference original
     return this.createTweet(content, userId, imageFile, true, originalTweetId);
+  },
+
+  // Delete a tweet (and its likes, comments, reposts via cascade if set)
+  async deleteTweet(tweetId: string, userId: string): Promise<void> {
+    // Ensure the tweet belongs to the user
+    const { data: tweet, error: fetchError } = await supabase
+      .from('tweets')
+      .select('user_id')
+      .eq('id', tweetId)
+      .single();
+
+    if (fetchError) throw new Error(fetchError.message);
+    if (!tweet || tweet.user_id !== userId) {
+      throw new Error('Unauthorized');
+    }
+
+    // Delete the tweet row (foreign-key cascade in DB should clean related rows if configured)
+    const { error } = await supabase
+      .from('tweets')
+      .delete()
+      .eq('id', tweetId)
+      .eq('user_id', userId);
+
+    if (error) throw new Error(error.message);
   },
 }; 

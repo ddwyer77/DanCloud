@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   SafeAreaView,
   Image,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -62,7 +63,7 @@ const TweetDetailScreen: React.FC = () => {
       setSubmitting(true);
       const newComment = await tweetService.createComment(tweetId, user.id, commentText.trim());
       setComments(prev => [newComment, ...prev]);
-      setTweet(prev => (prev ? { ...prev, comment_count: prev.comment_count + 1 } : prev));
+      setTweet(prev => (prev ? { ...prev, comment_count: (prev.comment_count || 0) + 1 } : prev));
       setCommentText('');
     } catch (error) {
       console.error('Error adding comment', error);
@@ -91,6 +92,27 @@ const TweetDetailScreen: React.FC = () => {
     </View>
   );
 
+  const handleDelete = () => {
+    if (!user || !tweet) return;
+
+    Alert.alert('Delete tweet?', 'This action cannot be undone.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await tweetService.deleteTweet(tweet.id, user.id);
+            navigation.goBack();
+          } catch (err) {
+            console.error('Delete tweet error', err);
+            Alert.alert('Error', 'Could not delete tweet');
+          }
+        },
+      },
+    ]);
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -114,6 +136,13 @@ const TweetDetailScreen: React.FC = () => {
           <Ionicons name="arrow-back" size={24} color="#1DA1F2" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Tweet</Text>
+        {user?.id === tweet.user_id ? (
+          <TouchableOpacity onPress={handleDelete}>
+            <Ionicons name="trash-outline" size={24} color="#E0245E" />
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 24 }} />
+        )}
       </View>
 
       <KeyboardAvoidingWrapper

@@ -11,6 +11,14 @@ import { AudioPlayerProvider } from './src/contexts/AudioPlayerContext';
 // Import components
 import BottomAudioPlayer from './src/components/BottomAudioPlayer';
 
+// Push notifications
+import { usePushNotifications } from './src/hooks/usePushNotifications';
+
+const PushNotificationInitializer = () => {
+  usePushNotifications();
+  return null;
+};
+
 // Import navigation
 import { AppNavigator } from './src/navigation/AppNavigator';
 
@@ -25,6 +33,7 @@ export default function App() {
             <View style={{ flex: 1 }}>
               <AppNavigator />
               <BottomAudioPlayer />
+              <PushNotificationInitializer />
               <StatusBar style="auto" />
             </View>
           </AudioPlayerProvider>

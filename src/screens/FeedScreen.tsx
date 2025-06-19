@@ -57,7 +57,7 @@ const FeedScreen = () => {
             ? {
                 ...t,
                 is_liked: isLiked,
-                like_count: isLiked ? t.like_count + 1 : t.like_count - 1,
+                like_count: isLiked ? (t.like_count || 0) + 1 : Math.max((t.like_count || 0) - 1, 0),
               }
             : t
         )
@@ -79,7 +79,7 @@ const FeedScreen = () => {
             ? {
                 ...t,
                 is_reposted: isReposted,
-                repost_count: isReposted ? t.repost_count + 1 : t.repost_count - 1,
+                repost_count: isReposted ? (t.repost_count || 0) + 1 : Math.max((t.repost_count || 0) - 1, 0),
               }
             : t
         )

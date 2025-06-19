@@ -41,15 +41,15 @@ const NotificationsScreen = ({ navigation }: any) => {
   };
 
   const getNotificationText = (notification: Notification) => {
-    const actorName = notification.from_user?.username || 'Someone';
+    const actorName = (notification as any).from_user?.username || 'Someone';
     
     switch (notification.type) {
       case 'follow':
         return `${actorName} started following you`;
       case 'like':
-        return `${actorName} liked your track "${notification.track?.title}"`;
+        return `${actorName} liked your track "${(notification as any).track?.title}"`;
       case 'comment':
-        return `${actorName} commented on your track "${notification.track?.title}"`;
+        return `${actorName} commented on your track "${(notification as any).track?.title}"`;
       default:
         return 'New notification';
     }

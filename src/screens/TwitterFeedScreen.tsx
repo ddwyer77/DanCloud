@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Text,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { tweetService } from '../services/tweetService';
@@ -77,7 +78,7 @@ const TwitterFeedScreen: React.FC = () => {
             ? {
                 ...t,
                 is_liked: isLiked,
-                like_count: isLiked ? t.like_count + 1 : t.like_count - 1,
+                like_count: isLiked ? (t.like_count || 0) + 1 : Math.max((t.like_count || 0) - 1, 0),
               }
             : t
         )
@@ -98,7 +99,7 @@ const TwitterFeedScreen: React.FC = () => {
             ? {
                 ...t,
                 is_reposted: isReposted,
-                repost_count: isReposted ? t.repost_count + 1 : t.repost_count - 1,
+                repost_count: isReposted ? (t.repost_count || 0) + 1 : Math.max((t.repost_count || 0) - 1, 0),
               }
             : t
         )
@@ -106,6 +107,25 @@ const TwitterFeedScreen: React.FC = () => {
     } catch (error) {
       console.error('Error toggling tweet repost', error);
     }
+  };
+
+  const handleDelete = async (tweet: Tweet) => {
+    Alert.alert('Delete tweet?', 'This action cannot be undone.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await tweetService.deleteTweet(tweet.id, user!.id);
+            setTweets(prev => prev.filter(t => t.id !== tweet.id));
+          } catch (err) {
+            console.error('Failed to delete tweet', err);
+            Alert.alert('Error', 'Could not delete tweet');
+          }
+        },
+      },
+    ]);
   };
 
   const renderTweet = ({ item }: { item: Tweet }) => (
@@ -120,6 +140,8 @@ const TwitterFeedScreen: React.FC = () => {
       }
       onPress={() => navigation.navigate('TweetDetail', { tweetId: item.id })}
       onQuote={() => navigation.navigate('QuoteTweet', { tweet: item })}
+      onDelete={() => handleDelete(item)}
+      currentUserId={user?.id}
     />
   );
 

@@ -126,7 +126,7 @@ const TrackDetailScreen = ({ route, navigation }: any) => {
       setTrack(prev => prev ? {
         ...prev,
         is_liked: isLiked,
-        like_count: isLiked ? prev.like_count + 1 : prev.like_count - 1,
+        like_count: isLiked ? (prev.like_count || 0) + 1 : Math.max((prev.like_count || 0) - 1, 0),
       } : null);
     } catch (error) {
       console.error('Error toggling like:', error);
@@ -141,7 +141,7 @@ const TrackDetailScreen = ({ route, navigation }: any) => {
       setTrack(prev => prev ? {
         ...prev,
         is_reposted: isReposted,
-        repost_count: isReposted ? prev.repost_count + 1 : prev.repost_count - 1,
+        repost_count: isReposted ? (prev.repost_count || 0) + 1 : Math.max((prev.repost_count || 0) - 1, 0),
       } : null);
     } catch (error) {
       console.error('Error toggling repost:', error);
@@ -155,7 +155,7 @@ const TrackDetailScreen = ({ route, navigation }: any) => {
       const comment = await commentService.addComment(track.id, user.id, newComment.trim());
       setComments(prev => [comment, ...prev]);
       setNewComment('');
-      setTrack(prev => prev ? { ...prev, comment_count: prev.comment_count + 1 } : null);
+      setTrack(prev => prev ? { ...prev, comment_count: (prev.comment_count || 0) + 1 } : null);
       
       // ScrollView will handle scrolling naturally
     } catch (error) {
@@ -226,7 +226,7 @@ const TrackDetailScreen = ({ route, navigation }: any) => {
   };
 
   const formatCount = (count: number | undefined | null) => {
-    const safeCount = count || 0;
+    const safeCount = typeof count === 'number' && !isNaN(count) ? count : 0;
     if (safeCount >= 1000000) {
       return `${(safeCount / 1000000).toFixed(1)}M`;
     } else if (safeCount >= 1000) {

@@ -8,8 +8,8 @@ export const notificationService = {
       .from('notifications')
       .select(`
         *,
-        related_user:users!notifications_related_user_id_fkey(id, username, profile_image_url),
-        related_track:tracks!notifications_related_track_id_fkey(id, title, cover_image_url)
+        from_user:users!notifications_related_user_id_fkey(id, username, profile_image_url),
+        track:tracks!notifications_related_track_id_fkey(id, title, cover_image_url)
       `)
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
@@ -83,5 +83,60 @@ export const notificationService = {
       }]);
 
     if (error) throw new Error(error.message);
+
+    // Attempt to send push notification to the target user with actor name
+    try {
+      // Fetch target user's push token
+      const { data: targetUser } = await supabase
+        .from('users')
+        .select('expo_push_token, username')
+        .eq('id', notification.user_id)
+        .single();
+
+      const pushToken = (targetUser as any)?.expo_push_token;
+
+      // Fetch actor user for name
+      const { data: actorUser } = await supabase
+        .from('users')
+        .select('username')
+        .eq('id', notification.related_user_id)
+        .single();
+
+      const actorName = (actorUser as any)?.username || 'Someone';
+
+      // Build message body
+      let pushBody = notification.message;
+      if (notification.type === 'follow') {
+        pushBody = `${actorName} started following you`;
+      } else if (notification.type === 'like') {
+        pushBody = `${actorName} liked your track`;
+      } else if (notification.type === 'comment') {
+        pushBody = `${actorName} commented on your track`;
+      } else if (notification.type === 'repost') {
+        pushBody = `${actorName} reposted your track`;
+      }
+
+      if (pushToken) {
+        await fetch('https://exp.host/--/api/v2/push/send', {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            to: pushToken,
+            title: 'DanCloud',
+            body: pushBody,
+            data: {
+              type: notification.type,
+              related_track_id: notification.related_track_id || null,
+              related_user_id: notification.related_user_id,
+            },
+          }),
+        });
+      }
+    } catch (pushErr) {
+      console.warn('[NOTIF] Failed to send push notification:', pushErr);
+    }
   },
 }; 

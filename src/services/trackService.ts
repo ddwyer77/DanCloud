@@ -51,7 +51,9 @@ export const trackService = {
     
     return (data || []).map(track => ({
       ...track,
-      comment_count: (track as any).comments_count || 0,
+      like_count: (track as any).like_count ?? (track as any).likes_count ?? 0,
+      repost_count: (track as any).repost_count ?? (track as any).reposts_count ?? 0,
+      comment_count: (track as any).comment_count ?? (track as any).comments_count ?? 0,
       is_liked: userId ? track.likes?.some((like: any) => like.user_id === userId) || false : false,
       is_reposted: userId ? track.reposts?.some((repost: any) => repost.user_id === userId) || false : false,
     }));
@@ -83,7 +85,9 @@ export const trackService = {
     // Randomize the tracks
     const tracks = (data || []).map(track => ({
       ...track,
-      comment_count: (track as any).comments_count || 0,
+      like_count: (track as any).like_count ?? (track as any).likes_count ?? 0,
+      repost_count: (track as any).repost_count ?? (track as any).reposts_count ?? 0,
+      comment_count: (track as any).comment_count ?? (track as any).comments_count ?? 0,
       is_liked: userId ? track.likes?.some((like: any) => like.user_id === userId) || false : false,
       is_reposted: userId ? track.reposts?.some((repost: any) => repost.user_id === userId) || false : false,
     }));
@@ -131,7 +135,9 @@ export const trackService = {
     // Format original tracks
     const formattedTracks = (originalTracks || []).map(track => ({
       ...track,
-      comment_count: (track as any).comments_count || 0,
+      like_count: (track as any).like_count ?? (track as any).likes_count ?? 0,
+      repost_count: (track as any).repost_count ?? (track as any).reposts_count ?? 0,
+      comment_count: (track as any).comment_count ?? (track as any).comments_count ?? 0,
       is_liked: userId ? track.likes?.some((like: any) => like.user_id === userId) || false : false,
       is_reposted: userId ? track.reposts?.some((repost: any) => repost.user_id === userId) || false : false,
       is_repost: false,
@@ -143,7 +149,9 @@ export const trackService = {
       .filter(repost => repost.track && repost.track.is_public) // Only include public tracks
       .map(repost => ({
         ...repost.track,
-        comment_count: (repost.track as any).comments_count || 0,
+        like_count: (repost.track as any).like_count ?? (repost.track as any).likes_count ?? 0,
+        repost_count: (repost.track as any).repost_count ?? (repost.track as any).reposts_count ?? 0,
+        comment_count: (repost.track as any).comment_count ?? (repost.track as any).comments_count ?? 0,
         is_liked: userId ? repost.track.likes?.some((like: any) => like.user_id === userId) || false : false,
         is_reposted: userId ? repost.track.reposts?.some((repost_check: any) => repost_check.user_id === userId) || false : false,
         is_repost: true,
@@ -184,7 +192,9 @@ export const trackService = {
 
     return {
       ...data,
-      comment_count: (data as any).comments_count || 0,
+      like_count: (data as any).like_count ?? (data as any).likes_count ?? 0,
+      repost_count: (data as any).repost_count ?? (data as any).reposts_count ?? 0,
+      comment_count: (data as any).comment_count ?? (data as any).comments_count ?? 0,
       is_liked: userId ? data.likes?.some((like: any) => like.user_id === userId) || false : false,
       is_reposted: userId ? data.reposts?.some((repost: any) => repost.user_id === userId) || false : false,
     };
@@ -204,7 +214,9 @@ export const trackService = {
     if (error) throw new Error(error.message);
     return (data || []).map(track => ({
       ...track,
-      comment_count: (track as any).comments_count || 0,
+      like_count: (track as any).like_count ?? (track as any).likes_count ?? 0,
+      repost_count: (track as any).repost_count ?? (track as any).reposts_count ?? 0,
+      comment_count: (track as any).comment_count ?? (track as any).comments_count ?? 0,
     }));
   },
 
@@ -619,8 +631,8 @@ export const trackService = {
     await supabase
       .from('tracks')
       .update({
-        like_count: likes?.length || 0,
-        repost_count: reposts?.length || 0,
+        likes_count: likes?.length || 0,
+        reposts_count: reposts?.length || 0,
         comments_count: comments?.length || 0,
       })
       .eq('id', trackId);
@@ -641,7 +653,9 @@ export const trackService = {
     if (error) throw new Error(error.message);
     return (data || []).map(track => ({
       ...track,
-      comment_count: (track as any).comments_count || 0,
+      like_count: (track as any).like_count ?? (track as any).likes_count ?? 0,
+      repost_count: (track as any).repost_count ?? (track as any).reposts_count ?? 0,
+      comment_count: (track as any).comment_count ?? (track as any).comments_count ?? 0,
     }));
   },
 
@@ -725,9 +739,9 @@ export const trackService = {
       // Format the response to match Track type
       const track: Track = {
         ...data,
-        like_count: data.likes?.length || 0,
-        repost_count: data.reposts?.length || 0,
-        comment_count: (data as any).comments_count || 0,
+        like_count: (data as any).like_count ?? (data as any).likes_count ?? 0,
+        repost_count: (data as any).repost_count ?? (data as any).reposts_count ?? 0,
+        comment_count: (data as any).comment_count ?? (data as any).comments_count ?? 0,
         is_liked: false,
         is_reposted: false,
       };
@@ -774,9 +788,9 @@ export const trackService = {
       // Format the response to match Track type
       const track: Track = {
         ...data,
-        like_count: data.likes?.length || 0,
-        repost_count: data.reposts?.length || 0,
-        comment_count: (data as any).comments_count || 0,
+        like_count: (data as any).like_count ?? (data as any).likes_count ?? 0,
+        repost_count: (data as any).repost_count ?? (data as any).reposts_count ?? 0,
+        comment_count: (data as any).comment_count ?? (data as any).comments_count ?? 0,
         is_liked: false,
         is_reposted: false,
       };
