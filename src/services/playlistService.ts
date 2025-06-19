@@ -549,13 +549,9 @@ export const playlistService = {
 
   // Increment playlist play count
   async incrementPlaylistPlayCount(playlistId: string): Promise<void> {
-    const { error } = await supabase
-      .from('playlists')
-      .update({ 
-        play_count: supabase.sql`play_count + 1`,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', playlistId);
+    const { error } = await supabase.rpc('increment_playlist_play_count', {
+      playlist_id: playlistId
+    });
 
     if (error) {
       console.error('Error incrementing playlist play count:', error);

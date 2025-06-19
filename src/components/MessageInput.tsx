@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   TextInput,
   TouchableOpacity,
   StyleSheet,
   Alert,
+  Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -12,15 +13,19 @@ interface MessageInputProps {
   onSend: (message: string) => Promise<void>;
   disabled?: boolean;
   placeholder?: string;
+  autoFocus?: boolean;
 }
 
 const MessageInput: React.FC<MessageInputProps> = ({
   onSend,
   disabled = false,
   placeholder = 'Type a message...',
+  autoFocus = false,
 }) => {
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
+  const textInputRef = useRef<TextInput>(null);
 
   const handleSend = async () => {
     const trimmedMessage = message.trim();
@@ -39,6 +44,10 @@ const MessageInput: React.FC<MessageInputProps> = ({
     try {
       await onSend(trimmedMessage);
       setMessage('');
+      // Keep focus after sending
+      setTimeout(() => {
+        textInputRef.current?.focus();
+      }, 100);
     } catch (error) {
       console.error('Error sending message:', error);
       Alert.alert('Error', 'Failed to send message. Please try again.');
@@ -47,51 +56,77 @@ const MessageInput: React.FC<MessageInputProps> = ({
     }
   };
 
+  const handleFocus = () => {
+    setIsFocused(true);
+  };
+
+  const handleBlur = () => {
+    setIsFocused(false);
+  };
+
   const canSend = message.trim().length > 0 && !sending && !disabled;
 
   return (
     <View style={styles.container}>
-      <TextInput
-        style={styles.textInput}
-        value={message}
-        onChangeText={setMessage}
-        placeholder={placeholder}
-        placeholderTextColor="#8E8E93"
-        multiline
-        maxLength={1000}
-        editable={!disabled && !sending}
-        returnKeyType="send"
-        onSubmitEditing={canSend ? handleSend : undefined}
-        blurOnSubmit={false}
-      />
-      
-      <TouchableOpacity
-        style={[
-          styles.sendButton,
-          canSend ? styles.sendButtonActive : styles.sendButtonInactive,
-        ]}
-        onPress={handleSend}
-        disabled={!canSend}
-      >
-        <Ionicons
-          name="send"
-          size={20}
-          color={canSend ? '#FFFFFF' : '#8E8E93'}
+      <View style={styles.inputWrapper}>
+        <TextInput
+          ref={textInputRef}
+          style={[styles.textInput, isFocused && styles.textInputFocused]}
+          value={message}
+          onChangeText={setMessage}
+          placeholder={placeholder}
+          placeholderTextColor="#8E8E93"
+          multiline
+          maxLength={1000}
+          editable={!disabled && !sending}
+          returnKeyType="send"
+          onSubmitEditing={canSend ? handleSend : undefined}
+          blurOnSubmit={false}
+          autoFocus={autoFocus}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          textAlignVertical="top"
         />
-      </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={[
+            styles.sendButton,
+            canSend ? styles.sendButtonActive : styles.sendButtonInactive,
+          ]}
+          onPress={handleSend}
+          disabled={!canSend}
+        >
+          <Ionicons
+            name="send"
+            size={20}
+            color={canSend ? '#FFFFFF' : '#8E8E93'}
+          />
+        </TouchableOpacity>
+      </View>
+      
+      {isFocused && (
+        <TouchableOpacity 
+          style={styles.dismissHint}
+          onPress={() => Keyboard.dismiss()}
+        >
+          <Ionicons name="chevron-down" size={16} color="#8E8E93" />
+        </TouchableOpacity>
+      )}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
     backgroundColor: '#FFFFFF',
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: '#E5E5EA',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
   },
   textInput: {
     flex: 1,
@@ -103,7 +138,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#F2F2F7',
     borderRadius: 18,
     fontSize: 16,
-    textAlignVertical: 'center',
+    textAlignVertical: 'top',
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  textInputFocused: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#007AFF',
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   sendButton: {
     width: 36,
@@ -117,6 +163,11 @@ const styles = StyleSheet.create({
   },
   sendButtonInactive: {
     backgroundColor: '#F2F2F7',
+  },
+  dismissHint: {
+    alignItems: 'center',
+    paddingVertical: 4,
+    marginTop: 4,
   },
 });
 

@@ -41,14 +41,14 @@ const NotificationsScreen = ({ navigation }: any) => {
   };
 
   const getNotificationText = (notification: Notification) => {
-    const actorName = notification.actor_user?.username || 'Someone';
+    const actorName = notification.from_user?.username || 'Someone';
     
     switch (notification.type) {
-      case 'FOLLOW':
+      case 'follow':
         return `${actorName} started following you`;
-      case 'LIKE':
+      case 'like':
         return `${actorName} liked your track "${notification.track?.title}"`;
-      case 'COMMENT':
+      case 'comment':
         return `${actorName} commented on your track "${notification.track?.title}"`;
       default:
         return 'New notification';
@@ -57,11 +57,11 @@ const NotificationsScreen = ({ navigation }: any) => {
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
-      case 'FOLLOW':
+      case 'follow':
         return { name: 'person-add', color: '#007AFF' };
-      case 'LIKE':
+      case 'like':
         return { name: 'heart', color: '#FF3B30' };
-      case 'COMMENT':
+      case 'comment':
         return { name: 'chatbubble', color: '#34C759' };
       default:
         return { name: 'notifications', color: '#8E8E93' };
@@ -69,8 +69,8 @@ const NotificationsScreen = ({ navigation }: any) => {
   };
 
   const handleNotificationPress = (notification: Notification) => {
-    if (notification.type === 'FOLLOW') {
-      navigation.navigate('UserProfile', { userId: notification.actor_user_id });
+    if (notification.type === 'follow') {
+      navigation.navigate('UserProfile', { userId: notification.from_user_id });
     } else if (notification.track_id) {
       navigation.navigate('TrackDetail', { trackId: notification.track_id });
     }
@@ -101,7 +101,7 @@ const NotificationsScreen = ({ navigation }: any) => {
       >
         <Image
           source={{
-            uri: item.actor_user?.profile_image_url || 'https://via.placeholder.com/40',
+            uri: item.from_user?.profile_image_url || 'https://via.placeholder.com/40',
           }}
           style={styles.avatar}
         />

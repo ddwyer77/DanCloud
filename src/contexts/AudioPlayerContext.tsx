@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { nativeAudioService, Track as AudioTrack, PlaybackStatus } from '../services/nativeAudioService';
 import { Track, Playlist } from '../types';
 import { playlistService } from '../services/playlistService';
@@ -63,21 +63,39 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [currentIndex, setCurrentIndex] = useState(0);
   const [shuffledPlaylist, setShuffledPlaylist] = useState<Track[]>([]);
   const [currentPlaylist, setCurrentPlaylist] = useState<Playlist | null>(null);
+  const audioInitialized = useRef(false);
+
+  // Lazy initialize audio service to prevent blocking app startup
+  const initializeAudioService = async () => {
+    if (audioInitialized.current) return;
+    
+    try {
+      console.log('[AUDIO] Initializing audio service...');
+      
+      // Set up audio service callbacks
+      nativeAudioService.setPlaybackStatusUpdateCallback((status: PlaybackStatus) => {
+        setIsPlaying(status.isPlaying);
+        setPosition(Math.floor(status.position / 1000)); // Convert to seconds
+        setDuration(Math.floor(status.duration / 1000)); // Convert to seconds
+      });
+
+      nativeAudioService.setOnTrackFinishedCallback(() => {
+        playNext();
+      });
+
+      audioInitialized.current = true;
+      console.log('[AUDIO] Audio service initialized successfully');
+    } catch (error) {
+      console.error('[AUDIO] Failed to initialize audio service:', error);
+    }
+  };
 
   useEffect(() => {
-    // Set up audio service callbacks
-    nativeAudioService.setPlaybackStatusUpdateCallback((status: PlaybackStatus) => {
-      setIsPlaying(status.isPlaying);
-      setPosition(Math.floor(status.position / 1000)); // Convert to seconds
-      setDuration(Math.floor(status.duration / 1000)); // Convert to seconds
-    });
-
-    nativeAudioService.setOnTrackFinishedCallback(() => {
-      playNext();
-    });
-
+    // Cleanup on unmount
     return () => {
-      nativeAudioService.cleanup();
+      if (audioInitialized.current) {
+        nativeAudioService.cleanup();
+      }
     };
   }, []);
 
@@ -111,7 +129,10 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const playTrack = async (track: Track, newPlaylist?: Track[]) => {
     try {
       setIsLoading(true);
-      console.log('Playing track:', track.title);
+      console.log('[AUDIO] Playing track:', track.title);
+
+      // Initialize audio service if not already done
+      await initializeAudioService();
 
       // Update playlist if provided
       if (newPlaylist && newPlaylist.length > 0) {
@@ -135,9 +156,9 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
       setCurrentTrack(track);
       setIsPlaying(true);
-      console.log('Track loaded and playing:', track.title);
+      console.log('[AUDIO] Track loaded and playing:', track.title);
     } catch (error) {
-      console.error('Failed to play track:', error);
+      console.error('[AUDIO] Failed to play track:', error);
     } finally {
       setIsLoading(false);
     }
@@ -148,7 +169,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       await nativeAudioService.pause();
       setIsPlaying(false);
     } catch (error) {
-      console.error('Failed to pause track:', error);
+      console.error('[AUDIO] Failed to pause track:', error);
     }
   };
 
@@ -157,7 +178,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       await nativeAudioService.play();
       setIsPlaying(true);
     } catch (error) {
-      console.error('Failed to resume track:', error);
+      console.error('[AUDIO] Failed to resume track:', error);
     }
   };
 
@@ -165,7 +186,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     try {
       await nativeAudioService.seek(seekPosition * 1000); // Convert to milliseconds
     } catch (error) {
-      console.error('Failed to seek:', error);
+      console.error('[AUDIO] Failed to seek:', error);
     }
   };
 
@@ -177,7 +198,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setPosition(0);
       setDuration(0);
     } catch (error) {
-      console.error('Failed to stop track:', error);
+      console.error('[AUDIO] Failed to stop track:', error);
     }
   };
 
@@ -222,55 +243,48 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   };
 
   const toggleShuffle = () => {
-    setIsShuffleEnabled(prev => !prev);
-    console.log('Shuffle toggled:', !isShuffleEnabled);
+    setIsShuffleEnabled(!isShuffleEnabled);
   };
 
   const toggleRepeat = () => {
-    setIsRepeatEnabled(prev => !prev);
-    console.log('Repeat toggled:', !isRepeatEnabled);
+    setIsRepeatEnabled(!isRepeatEnabled);
   };
 
   const setPlaylist = (tracks: Track[]) => {
     setPlaylistState(tracks);
     setCurrentIndex(0);
-    setCurrentPlaylist(null); // Clear playlist context when setting raw tracks
   };
 
   const clearPlaylist = () => {
     setPlaylistState([]);
+    setShuffledPlaylist([]);
     setCurrentIndex(0);
-    setCurrentPlaylist(null);
   };
 
   const playPlaylist = async (playlist: Playlist, startIndex: number = 0) => {
     try {
-      setIsLoading(true);
+             console.log('[AUDIO] Loading playlist:', playlist.title || playlist.id);
       
-      // Get playlist tracks
+      // Fetch playlist tracks using the service
       const tracks = await playlistService.getPlaylistTracks(playlist.id);
       
       if (tracks.length === 0) {
-        throw new Error('Playlist is empty');
+        console.warn('[AUDIO] Playlist is empty');
+        return;
       }
 
-      // Increment playlist play count
-      playlistService.incrementPlaylistPlayCount(playlist.id);
-
-      // Set the playlist and tracks
-      setCurrentPlaylist(playlist);
+      // Set the playlist and current playlist
       setPlaylistState(tracks);
-      setCurrentIndex(startIndex);
-
-      // Play the first track (or specified index)
-      const trackToPlay = tracks[startIndex] || tracks[0];
-      await playTrack(trackToPlay, tracks);
+      setCurrentPlaylist(playlist);
       
+      // Play the track at the specified index
+      const trackToPlay = tracks[Math.min(startIndex, tracks.length - 1)];
+      if (trackToPlay) {
+        setCurrentIndex(startIndex);
+        await playTrack(trackToPlay, tracks);
+      }
     } catch (error) {
-      console.error('Failed to play playlist:', error);
-      throw error;
-    } finally {
-      setIsLoading(false);
+      console.error('[AUDIO] Failed to play playlist:', error);
     }
   };
 
@@ -282,7 +296,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     isLoading,
     isShuffleEnabled,
     isRepeatEnabled,
-    playlist: getActivePlaylist(),
+    playlist,
     currentIndex,
     currentPlaylist,
     playTrack,
@@ -299,9 +313,5 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     clearPlaylist,
   };
 
-  return (
-    <AudioPlayerContext.Provider value={value}>
-      {children}
-    </AudioPlayerContext.Provider>
-  );
+  return <AudioPlayerContext.Provider value={value}>{children}</AudioPlayerContext.Provider>;
 }; 

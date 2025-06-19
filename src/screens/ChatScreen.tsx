@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,98 +7,104 @@ import {
   SafeAreaView,
   StatusBar,
   TouchableOpacity,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
   Image,
+  Alert,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-
 import { useAuth } from '../contexts/AuthContext';
-import { chatService } from '../services/chatService';
 import { useAudioPlayer, AUDIO_PLAYER_HEIGHT } from '../contexts/AudioPlayerContext';
-import { Message, Conversation } from '../types';
-import MessageBubble from '../components/MessageBubble';
+import { chatService } from '../services/chatService';
+import { Conversation, Message } from '../types';
 import MessageInput from '../components/MessageInput';
+import MessageBubble from '../components/MessageBubble';
+import KeyboardAvoidingWrapper from '../components/KeyboardAvoidingWrapper';
+import { dismissKeyboard, useKeyboard } from '../utils/keyboardUtils';
 
 const ChatScreen = ({ navigation, route }: any) => {
-  const { conversation: initialConversation } = route.params;
-  const { user } = useAuth();
-  const { currentTrack } = useAudioPlayer();
-  
-  const [conversation, setConversation] = useState<Conversation>(initialConversation);
+  const { conversation }: { conversation: Conversation } = route.params;
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [subscription, setSubscription] = useState<any>(null);
+  
   const flatListRef = useRef<FlatList>(null);
+  const { user } = useAuth();
+  const { currentTrack } = useAudioPlayer();
+  const keyboard = useKeyboard();
+
+  const scrollToBottom = useCallback(() => {
+    if (flatListRef.current && messages.length > 0) {
+      flatListRef.current.scrollToEnd({ animated: true });
+    }
+  }, [messages.length]);
 
   const loadMessages = useCallback(async () => {
+    if (!user) return;
+
     try {
-      const msgs = await chatService.getConversationMessages(conversation.id);
-      setMessages(msgs);
+      setLoading(true);
+      const fetchedMessages = await chatService.getConversationMessages(conversation.id);
+      setMessages(fetchedMessages);
       
       // Mark messages as read
-      if (user?.id) {
-        await chatService.markMessagesAsRead(conversation.id, user.id);
-      }
+      await chatService.markMessagesAsRead(conversation.id, user.id);
     } catch (error) {
       console.error('Error loading messages:', error);
       Alert.alert('Error', 'Failed to load messages');
     } finally {
       setLoading(false);
     }
-  }, [conversation.id, user?.id]);
+  }, [conversation.id, user]);
 
-  const handleSendMessage = useCallback(async (content: string) => {
-    if (!user?.id) return;
-    
+  const handleSendMessage = async (content: string) => {
+    if (!user || !content.trim()) return;
+
     setSending(true);
     try {
-      const newMessage = await chatService.sendMessage(conversation.id, user.id, content);
-      // Message will be added via real-time subscription
+      const newMessage = await chatService.sendMessage(conversation.id, user.id, content.trim());
+      setMessages(prev => [...prev, newMessage]);
       
       // Scroll to bottom after sending
       setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
+        scrollToBottom();
       }, 100);
     } catch (error) {
       console.error('Error sending message:', error);
-      throw error; // Re-throw to let MessageInput handle the error
+      Alert.alert('Error', 'Failed to send message');
     } finally {
       setSending(false);
     }
-  }, [conversation.id, user?.id]);
+  };
 
-  const scrollToBottom = useCallback(() => {
-    if (messages.length > 0) {
-      flatListRef.current?.scrollToEnd({ animated: false });
-    }
-  }, [messages.length]);
-
+  // Load initial messages
   useEffect(() => {
     loadMessages();
-    
-    // Set up real-time subscription for messages
-    const sub = chatService.subscribeToMessages(conversation.id, (updatedMessages) => {
-      setMessages(updatedMessages);
+  }, [loadMessages]);
+
+  // Set up real-time subscription
+  useEffect(() => {
+    if (!user) return;
+
+    const sub = chatService.subscribeToMessages(conversation.id, (messages) => {
+      setMessages(messages);
       
       // Mark messages as read when they arrive
-      if (user?.id) {
-        chatService.markMessagesAsRead(conversation.id, user.id);
-      }
+      chatService.markMessagesAsRead(conversation.id, user.id);
+      
+      // Auto-scroll to bottom
+      setTimeout(() => {
+        scrollToBottom();
+      }, 100);
     });
-    
-    setSubscription(sub);
     
     return () => {
       if (sub) {
         sub.unsubscribe();
       }
     };
-  }, [conversation.id, user?.id, loadMessages]);
+  }, [conversation.id, user?.id, loadMessages, scrollToBottom]);
 
-  // Scroll to bottom when messages are loaded
+  // Scroll to bottom when messages are loaded or keyboard appears
   useEffect(() => {
     if (!loading && messages.length > 0) {
       setTimeout(() => {
@@ -106,6 +112,15 @@ const ChatScreen = ({ navigation, route }: any) => {
       }, 100);
     }
   }, [loading, scrollToBottom, messages.length]);
+
+  // Scroll to bottom when keyboard appears
+  useEffect(() => {
+    if (keyboard.isVisible) {
+      setTimeout(() => {
+        scrollToBottom();
+      }, 300);
+    }
+  }, [keyboard.isVisible, scrollToBottom]);
 
   const renderMessage = useCallback(({ item, index }: { item: Message; index: number }) => {
     const isOwnMessage = item.sender_id === user?.id;
@@ -181,10 +196,10 @@ const ChatScreen = ({ navigation, route }: any) => {
         </TouchableOpacity>
       </View>
 
-      <KeyboardAvoidingView
-        style={styles.content}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+      <KeyboardAvoidingWrapper
+        enablePanGesture={true}
+        enableTouchDismiss={false} // Don't dismiss on chat area tap
+        extraOffset={Platform.OS === 'ios' ? 0 : 20}
       >
         {/* Messages List */}
         <FlatList
@@ -196,18 +211,25 @@ const ChatScreen = ({ navigation, route }: any) => {
           contentContainerStyle={[
             styles.messagesList,
             messages.length === 0 && styles.emptyContainer,
-            currentTrack && { paddingBottom: AUDIO_PLAYER_HEIGHT }
+            currentTrack && { paddingBottom: AUDIO_PLAYER_HEIGHT },
+            keyboard.isVisible && { paddingBottom: 20 } // Extra padding when keyboard is visible
           ]}
           onContentSizeChange={scrollToBottom}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          maintainVisibleContentPosition={{
+            minIndexForVisible: 0,
+            autoscrollToTopThreshold: 10,
+          }}
         />
 
         {/* Message Input */}
         <MessageInput
           onSend={handleSendMessage}
           disabled={sending}
+          placeholder={`Message ${conversation.other_user?.username}...`}
         />
-      </KeyboardAvoidingView>
+      </KeyboardAvoidingWrapper>
     </SafeAreaView>
   );
 };

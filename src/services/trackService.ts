@@ -673,15 +673,13 @@ export const trackService = {
         const coverFileName = `${userId}-${Date.now()}.jpg`;
         const coverPath = `covers/${coverFileName}`;
 
-        const coverBlob = {
-          uri: coverImageFile.uri,
-          type: coverImageFile.type || 'image/jpeg',
-          name: coverImageFile.name || coverFileName,
-        };
+        // Create FormData with file blob for upload
+        const response = await fetch(coverImageFile.uri);
+        const blob = await response.blob();
 
         const { error: coverError } = await supabase.storage
           .from('images')
-          .upload(coverPath, coverBlob, {
+          .upload(coverPath, blob, {
             contentType: coverImageFile.type || 'image/jpeg',
           });
 

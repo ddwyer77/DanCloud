@@ -26,13 +26,19 @@ class NativeAudioService {
   private onTrackFinishedCallback: (() => void) | null = null;
   private onNextTrackCallback: (() => void) | null = null;
   private onPreviousTrackCallback: (() => void) | null = null;
+  private isInitialized: boolean = false;
 
   constructor() {
-    this.initializeAudio();
+    // Don't initialize immediately - let it be lazy loaded
+    console.log('[AUDIO] NativeAudioService created (lazy initialization)');
   }
 
   private async initializeAudio() {
+    if (this.isInitialized) return;
+    
     try {
+      console.log('[AUDIO] Initializing audio session...');
+      
       // Configure audio session for background playback
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: false,
@@ -44,15 +50,20 @@ class NativeAudioService {
         playThroughEarpieceAndroid: false,
       });
 
+      this.isInitialized = true;
       console.log('🎵 Audio session configured for background playback');
       console.log('⚠️  Note: Full iOS Now Playing requires a development build, not Expo Go');
     } catch (error) {
       console.error('❌ Failed to configure audio session:', error);
+      throw error;
     }
   }
 
   async loadTrack(track: Track): Promise<void> {
     try {
+      // Ensure audio is initialized before loading tracks
+      await this.initializeAudio();
+      
       console.log('🎵 Loading track:', track.title);
       
       // Unload previous track
@@ -222,11 +233,12 @@ class NativeAudioService {
       this.onTrackFinishedCallback = null;
       this.onNextTrackCallback = null;
       this.onPreviousTrackCallback = null;
-      console.log('🧹 Native audio service cleaned up');
+      console.log('🧹 Audio service cleaned up');
     } catch (error) {
       console.error('❌ Failed to cleanup audio service:', error);
     }
   }
 }
 
+// Export a singleton instance
 export const nativeAudioService = new NativeAudioService(); 

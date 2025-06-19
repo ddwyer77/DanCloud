@@ -1,0 +1,205 @@
+# DANCLOUD SCROLLING & KEYBOARD ISSUES - COMPREHENSIVE CONTEXT FOR CLAUDE
+
+## APP OVERVIEW & ARCHITECTURE
+
+DanCloud is a React Native music streaming/social app built with:
+- **Framework**: React Native with Expo SDK 53
+- **Backend**: Supabase (PostgreSQL database, authentication, storage)
+- **Navigation**: React Navigation v6
+- **Audio**: expo-av (deprecated, needs migration to expo-audio)
+- **Styling**: StyleSheet with custom theme system
+- **State Management**: React Context (AuthContext, AudioPlayerContext)
+
+## APP STRUCTURE
+```
+src/
+├── components/
+│   ├── KeyboardAvoidingWrapper.tsx (custom keyboard handling)
+│   ├── EnhancedScrollView.tsx (custom scroll with gesture handling)
+│   ├── MessageInput.tsx (chat input with focus states)
+│   └── ui/ (Button, Input components)
+├── contexts/
+│   ├── AuthContext.tsx (user authentication & profile)
+│   └── AudioPlayerContext.tsx (music playback state)
+├── screens/
+│   ├── TrackDetailScreen.tsx (THE PROBLEMATIC SCREEN)
+│   ├── ChatScreen.tsx (has similar keyboard issues)
+│   └── [other screens]
+├── services/
+│   ├── trackService.ts (track CRUD operations)
+│   ├── commentService.ts (comment management)
+│   └── nativeAudioService.ts (audio playback)
+└── utils/
+    └── keyboardUtils.ts (global keyboard management)
+```
+
+## CURRENT ISSUES
+
+### 1. SCROLLING PROBLEMS ON TRACKDETAILSCREEN
+- **Symptom**: Sometimes the track detail page won't scroll at all
+- **Symptom**: Sometimes scrolling works but then suddenly stops working mid-scroll
+- **Symptom**: Sometimes can't scroll all the way down, then can't scroll back up
+- **Behavior**: Inconsistent - works sometimes, fails other times
+- **Context**: Happens both with comments visible and hidden
+
+### 2. KEYBOARD BLOCKING COMMENT INPUT
+- **Symptom**: When user taps to comment, keyboard appears but blocks the text input and send button
+- **Symptom**: User can't see what they're typing
+- **Expected**: Input should scroll into view above keyboard
+- **Context**: Happens on TrackDetailScreen when comments are visible
+
+## TECHNICAL IMPLEMENTATION DETAILS
+
+### TrackDetailScreen Architecture (Current State)
+```tsx
+// Conditional rendering based on comments visibility
+{commentsVisible ? (
+  // FlatList for comments + track header
+  <KeyboardAvoidingWrapper>
+    <FlatList
+      data={comments}
+      ListHeaderComponent={renderTrackHeader}
+      ListFooterComponent={renderFooter}
+      // ... other props
+    />
+    {renderCommentInput()} // Fixed at bottom
+  </KeyboardAvoidingWrapper>
+) : (
+  // ScrollView for just track content
+  <ScrollView>
+    {renderTrackHeader()}
+  </ScrollView>
+)}
+```
+
+### KeyboardAvoidingWrapper Implementation
+- Custom component wrapping React Native's KeyboardAvoidingView
+- Includes pan gesture handling for swipe-to-dismiss
+- Has platform-specific behavior (iOS vs Android)
+- Includes audio player height offset calculation
+- Properties: enablePanGesture, enableTouchDismiss, extraOffset
+
+### Comment Input Implementation
+- Fixed positioned at bottom when comments visible
+- Uses TextInput with focus state tracking
+- Has send button and dismiss keyboard hint
+- Wrapped in KeyboardAvoidingWrapper
+
+## PREVIOUS ATTEMPTS TO FIX ISSUES
+
+### Attempt 1: Single FlatList Approach
+- **What we tried**: Used single FlatList for all scenarios with dummy data when comments hidden
+- **Problem**: TypeScript errors with mixed data types
+- **Outcome**: Reverted due to complexity
+
+### Attempt 2: Enhanced ScrollView Component
+- **What we tried**: Created custom EnhancedScrollView with gesture handling
+- **Problem**: Still had scrolling inconsistencies
+- **File**: `src/components/EnhancedScrollView.tsx`
+
+### Attempt 3: Improved KeyboardAvoidingWrapper
+- **What we tried**: Enhanced with pan gestures, dynamic offsets, platform-specific handling
+- **Improvements**: Better keyboard dismissal, swipe-down to dismiss
+- **Problem**: Still has keyboard blocking issues in comments
+
+### Attempt 4: App-wide Keyboard Management
+- **What we tried**: Added global keyboard utilities and TouchableWithoutFeedback wrapper
+- **File**: `src/utils/keyboardUtils.ts`
+- **Improvements**: Better global keyboard state tracking
+- **Problem**: Doesn't fully solve TrackDetail screen issues
+
+### Attempt 5: Hybrid ScrollView/FlatList Approach (Current)
+- **What we tried**: ScrollView when comments hidden, FlatList when comments visible
+- **Improvement**: Better scrolling reliability
+- **Problem**: Still has intermittent scrolling issues and keyboard blocking
+
+## CURRENT STATE & FILES TO EXAMINE
+
+### Key Files with Recent Changes:
+1. **src/screens/TrackDetailScreen.tsx** - Main problematic file
+2. **src/components/KeyboardAvoidingWrapper.tsx** - Custom keyboard handling
+3. **src/utils/keyboardUtils.ts** - Global keyboard utilities
+4. **src/components/MessageInput.tsx** - Input component with focus states
+
+### TrackDetailScreen Current Logic:
+- Uses conditional rendering: ScrollView OR (FlatList + KeyboardAvoidingWrapper)
+- Comments toggle between visible/hidden states
+- Comment input fixed at bottom when comments visible
+- Audio player height offset considerations
+
+## SPECIFIC TECHNICAL CHALLENGES
+
+### ScrollView vs FlatList Conflicts
+- Different components have different scroll behaviors
+- Layout shifts when switching between modes
+- Potential gesture handler conflicts
+- KeyboardAvoidingWrapper interactions
+
+### Keyboard Avoidance Issues
+- React Native's KeyboardAvoidingView inconsistent behavior
+- Custom wrapper may interfere with native scrolling
+- Bottom audio player complicates offset calculations
+- iOS vs Android keyboard behavior differences
+
+### Layout Hierarchy Conflicts
+```
+SafeAreaView
+├── Header (fixed)
+├── KeyboardAvoidingWrapper (conditional)
+│   ├── FlatList OR ScrollView
+│   └── CommentInput (fixed at bottom, conditional)
+└── Bottom Audio Player (global, fixed)
+```
+
+## DEBUGGING INFORMATION
+
+### Console Logs Available:
+- `[KEYBOARD] Keyboard shown, height: X` - Tracks keyboard state
+- `[AUTH]` - Authentication flow logs
+- `[AUDIO]` - Audio playback logs
+
+### Testing Environment:
+- Expo Go on iOS device
+- React Native 0.79.3
+- Expo SDK 53
+
+## EXPECTED BEHAVIOR
+
+### Scrolling Should:
+1. Work consistently on track detail screen regardless of comments state
+2. Allow smooth scrolling through entire track content
+3. Never freeze or become unresponsive
+4. Maintain scroll position when toggling comments
+
+### Keyboard Should:
+1. Automatically scroll comment input into view when focused
+2. Not block the text input or send button
+3. Allow user to see what they're typing
+4. Smoothly dismiss when user taps outside or swipes down
+
+## CONSTRAINTS & CONSIDERATIONS
+
+1. **Must maintain current app architecture** - Don't break existing functionality
+2. **Performance sensitive** - App has music playback, can't introduce jank
+3. **Cross-platform** - Must work on both iOS and Android
+4. **Bottom audio player** - Global component that affects all screen layouts
+5. **Expo limitations** - Using Expo Go, can't use certain native modules
+
+## RELATED FEATURES THAT WORK
+
+- **ChatScreen**: Has similar keyboard handling but works better
+- **MessageInput component**: Focus states and keyboard dismissal work
+- **Other screens**: General scrolling works fine on Feed, Profile, etc.
+
+## REQUEST FOR HELP
+
+We need a solution that:
+1. **Fixes scrolling reliability** on TrackDetailScreen
+2. **Fixes keyboard blocking** comment input
+3. **Maintains performance** and doesn't break existing features
+4. **Uses our existing architecture** where possible
+5. **Provides consistent behavior** across all use cases
+
+The scrolling issues seem to be related to the conditional rendering and component switching, while the keyboard issues are likely related to the KeyboardAvoidingWrapper configuration and layout hierarchy.
+
+We've tried multiple approaches but haven't found a solution that addresses both issues completely. Looking for a comprehensive fix that addresses the root causes of these layout and interaction problems. 

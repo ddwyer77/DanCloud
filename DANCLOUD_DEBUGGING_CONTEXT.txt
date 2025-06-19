@@ -1,0 +1,318 @@
+# DANCLOUD APP - COMPREHENSIVE DEBUGGING CONTEXT
+
+## APP OVERVIEW
+DanCloud is a React Native music streaming/social app built with Expo (SDK 53). It's a SoundCloud-like platform where users can upload, share, and discover music tracks. The app includes social features like following, likes, reposts, comments, playlists, and real-time chat.
+
+## CURRENT CRITICAL ISSUES TO ADDRESS
+
+### 1. APP HANGING ON INITIAL LAUNCH
+- **Primary Issue**: App appears to hang/freeze on initial startup
+- **Symptoms**: App may not load past splash screen or loading screen
+- **Potential Causes**: 
+  - Async initialization issues in contexts (AuthContext, AudioPlayerContext)
+  - Supabase connection/authentication delays
+  - Navigation setup issues
+  - Heavy initial data loading blocking UI thread
+  - Race conditions in service initialization
+
+### 2. GENERAL BUGS THROUGHOUT APP
+- Various UI/UX issues that need investigation
+- Performance problems
+- State management issues
+- Navigation bugs
+
+## TECHNICAL ARCHITECTURE
+
+### TECH STACK
+- **Framework**: React Native with Expo (SDK 53.0.11)
+- **Navigation**: React Navigation v7 (Stack + Bottom Tabs)
+- **Database**: Supabase (PostgreSQL with real-time features)
+- **State Management**: React Context + Local State
+- **Audio**: expo-av + expo-audio for playback
+- **Storage**: Supabase Storage for audio files and images
+- **Authentication**: Supabase Auth
+- **Build System**: EAS Build
+- **TypeScript**: Full TypeScript implementation
+
+### CORE DEPENDENCIES
+```json
+{
+  "@react-navigation/bottom-tabs": "^7.3.14",
+  "@react-navigation/native": "^7.1.10",
+  "@react-navigation/stack": "^7.3.3",
+  "@supabase/supabase-js": "^2.50.0",
+  "@tanstack/react-query": "^5.80.7",
+  "expo": "~53.0.11",
+  "expo-audio": "^0.4.6",
+  "expo-av": "^15.1.6",
+  "react": "19.0.0",
+  "react-native": "0.79.3"
+}
+```
+
+## PROJECT STRUCTURE
+
+### KEY DIRECTORIES
+```
+src/
+├── components/          # Reusable UI components
+│   ├── ui/             # Basic UI components (Button, Input)
+│   ├── BottomAudioPlayer.tsx
+│   ├── TrackCard.tsx
+│   └── MessageInput.tsx
+├── contexts/           # React Contexts for global state
+│   ├── AuthContext.tsx     # User authentication state
+│   └── AudioPlayerContext.tsx  # Audio playback state
+├── screens/            # All app screens
+│   ├── auth/          # Authentication screens
+│   ├── FeedScreen.tsx
+│   ├── ProfileScreen.tsx
+│   └── ChatScreen.tsx
+├── services/          # API and business logic
+│   ├── supabase.ts    # Database client
+│   ├── trackService.ts
+│   ├── userService.ts
+│   ├── chatService.ts
+│   └── nativeAudioService.ts
+├── navigation/
+│   └── AppNavigator.tsx   # Main navigation setup
+└── types/             # TypeScript type definitions
+    ├── database.ts    # Supabase types
+    └── index.ts       # App-specific types
+```
+
+### CRITICAL FILES FOR DEBUGGING LAUNCH ISSUES
+
+#### 1. App.tsx (Entry Point)
+- Main app component
+- Wraps entire app with contexts
+- Navigation setup
+- **Check for**: Heavy initialization, async operations blocking render
+
+#### 2. src/contexts/AuthContext.tsx
+- Manages user authentication state
+- Supabase session handling
+- **Potential Issue**: May be making blocking calls on app start
+- **Check for**: Async initialization, session restoration delays
+
+#### 3. src/contexts/AudioPlayerContext.tsx
+- Global audio playback state
+- **Potential Issue**: Audio initialization might be blocking
+- **Check for**: Heavy audio setup, permission requests
+
+#### 4. src/navigation/AppNavigator.tsx
+- Navigation structure and routing
+- **Check for**: Complex navigation logic, heavy initial screens
+
+#### 5. src/services/supabase.ts
+- Database connection and configuration
+- **Potential Issue**: Connection timeouts, auth delays
+- **Check for**: Blocking database calls, network timeouts
+
+## DATABASE SCHEMA (SUPABASE)
+
+### CORE TABLES
+- **users**: User profiles and authentication
+- **tracks**: Audio tracks with metadata
+- **likes**: Track likes
+- **reposts**: Track reposts  
+- **comments**: Track comments
+- **follows**: User follows
+- **notifications**: User notifications
+- **playlists**: User-created playlists
+- **playlist_tracks**: Playlist track associations
+- **conversations**: Chat conversations
+- **messages**: Chat messages
+
+### RLS (Row Level Security)
+- All tables have RLS policies enabled
+- Recent fixes applied to comments RLS policies
+- **Check for**: RLS policy errors blocking data access
+
+## RECENT FIXES APPLIED
+
+### TypeScript Errors Fixed (Just Resolved)
+1. **NotificationsScreen.tsx**: Fixed property name mismatches
+   - Changed `actor_user` → `from_user` 
+   - Changed `actor_user_id` → `from_user_id`
+   - Fixed notification type cases (`'FOLLOW'` → `'follow'`)
+
+2. **UI Components**: Removed non-existent `EnhancedBottomAudioPlayer` export
+
+3. **trackService.ts**: Fixed file upload blob handling for cover images
+
+4. **playlistService.ts**: Fixed database query syntax issues
+
+### Build Status
+- **Latest Build**: Successfully deployed to TestFlight (Build #5, v1.1.0)
+- **Build ID**: f7732f20-7512-4949-b1dd-d6763d01d13b
+
+## COMMON DEBUGGING APPROACHES
+
+### 1. LAUNCH ISSUES DEBUGGING
+```javascript
+// Add logging to track initialization flow
+console.log('[DEBUG] App starting...');
+console.log('[DEBUG] AuthContext initializing...');
+console.log('[DEBUG] Navigation ready...');
+```
+
+### 2. CONTEXT DEBUGGING
+Check these contexts for blocking operations:
+- AuthContext: Session restoration
+- AudioPlayerContext: Audio initialization
+- Any useEffect hooks with heavy async operations
+
+### 3. SUPABASE CONNECTION TESTING
+```javascript
+// Test Supabase connectivity
+const testConnection = async () => {
+  try {
+    const { data, error } = await supabase.from('users').select('count').limit(1);
+    console.log('[DEBUG] Supabase connection:', { data, error });
+  } catch (e) {
+    console.log('[DEBUG] Supabase error:', e);
+  }
+};
+```
+
+### 4. NAVIGATION DEBUGGING
+- Check initial route setup
+- Look for circular navigation dependencies
+- Verify all required screens are properly imported
+
+## PERFORMANCE CONSIDERATIONS
+
+### KNOWN PERFORMANCE BOTTLENECKS
+1. **Large track lists**: FlatList performance with audio metadata
+2. **Image loading**: Cover art and profile images
+3. **Audio initialization**: Native audio service setup
+4. **Real-time updates**: Supabase subscriptions
+
+### OPTIMIZATION STRATEGIES
+- Use React.memo for heavy components
+- Implement proper FlatList optimization (getItemLayout, keyExtractor)
+- Lazy load heavy screens
+- Optimize Supabase queries with proper indexing
+
+## DEVELOPMENT WORKFLOW
+
+### LOCAL DEVELOPMENT
+```bash
+npm start                    # Start Expo dev server
+npm run ios                 # Run on iOS simulator
+npm run android             # Run on Android emulator
+```
+
+### BUILDING AND DEPLOYMENT
+```bash
+npx eas build --platform ios --profile production
+npx eas submit --platform ios --latest
+```
+
+### DATABASE MANAGEMENT
+- Supabase Dashboard: https://supabase.com/dashboard
+- Local development uses remote Supabase instance
+- Database migrations in `supabase/migrations/`
+
+## DEBUGGING TOOLS AND TECHNIQUES
+
+### 1. REACT NATIVE DEBUGGER
+- Enable remote debugging
+- Use Flipper for advanced debugging
+- Network inspection for Supabase calls
+
+### 2. CONSOLE LOGGING
+- Add strategic console.log statements
+- Use different prefixes for different services ([AUTH], [AUDIO], [NAV])
+
+### 3. ERROR BOUNDARIES
+- Implement React Error Boundaries to catch component crashes
+- Log errors to understand crash patterns
+
+### 4. EXPO DEV TOOLS
+- Use Expo dev client for better debugging
+- Check Metro bundler logs for build issues
+
+## SPECIFIC AREAS TO INVESTIGATE FOR LAUNCH HANGING
+
+### 1. ASYNC INITIALIZATION CHAIN
+Check this initialization order:
+1. App.tsx renders
+2. AuthContext initializes (checks stored session)
+3. Navigation determines initial route
+4. Initial screen loads data
+5. UI renders
+
+### 2. SUPABASE SESSION RESTORATION
+```javascript
+// In AuthContext, check if this is blocking:
+useEffect(() => {
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    setSession(session);
+    setUser(session?.user ?? null);
+    setLoading(false); // Make sure this always gets called
+  });
+}, []);
+```
+
+### 3. AUDIO SYSTEM INITIALIZATION
+- Check if audio permissions are being requested synchronously
+- Verify audio service initialization isn't blocking main thread
+
+### 4. NAVIGATION READY STATE
+- Ensure NavigationContainer onReady callback is properly handled
+- Check for navigation loops or missing route definitions
+
+## ERROR PATTERNS TO LOOK FOR
+
+### 1. UNHANDLED PROMISES
+- Async operations without proper error handling
+- Promise rejections that might crash the app
+
+### 2. MEMORY LEAKS
+- Unsubscribed listeners
+- Unreleased resources
+- Growing object references
+
+### 3. STATE UPDATES ON UNMOUNTED COMPONENTS
+- setState calls after component unmount
+- Context updates after provider unmount
+
+## TESTING STRATEGY
+
+### 1. INCREMENTAL LOADING
+- Comment out heavy components/screens
+- Add loading states to identify bottlenecks
+- Test with minimal app functionality first
+
+### 2. PROFILING
+- Use React Native Performance Monitor
+- Profile startup time with timestamps
+- Monitor memory usage during initialization
+
+### 3. DEVICE TESTING
+- Test on different iOS versions
+- Test on different device types (iPhone vs iPad)
+- Test with/without network connectivity
+
+## NEXT STEPS FOR DEBUGGING
+
+1. **Add comprehensive logging** to track app initialization flow
+2. **Profile startup performance** to identify bottlenecks
+3. **Test incremental loading** by commenting out features
+4. **Check error boundaries** and crash reporting
+5. **Verify async initialization** in contexts and services
+6. **Test network connectivity** and Supabase connection handling
+
+## CONTACT POINTS FOR SUPPORT
+
+- **Expo Documentation**: https://docs.expo.dev/
+- **Supabase Documentation**: https://supabase.com/docs
+- **React Navigation**: https://reactnavigation.org/docs/
+- **React Native Performance**: https://reactnative.dev/docs/performance
+
+---
+Generated: 2025-06-17
+Last Build: f7732f20-7512-4949-b1dd-d6763d01d13b (v1.1.0, Build #5)
+TestFlight: Available 
