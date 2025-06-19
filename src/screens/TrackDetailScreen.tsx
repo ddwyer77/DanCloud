@@ -485,12 +485,16 @@ const TrackDetailScreen = ({ route, navigation }: any) => {
             styles.commentInputContainer,
             {
               position: 'absolute',
-              bottom: 0,
               left: 0,
               right: 0,
-              paddingBottom: keyboardHeight > 0 
-                ? Platform.OS === 'ios' ? 0 : 10
-                : currentTrack ? AUDIO_PLAYER_HEIGHT : 10
+              // Lift above keyboard or audio player when necessary
+              bottom: keyboardHeight > 0
+                ? keyboardHeight
+                : currentTrack
+                  ? AUDIO_PLAYER_HEIGHT
+                  : 0,
+              // Small extra padding for aesthetics / Android shadow overlap
+              paddingBottom: 10,
             }
           ]}
           pointerEvents="box-none" // Allow touches to pass through except for input area
