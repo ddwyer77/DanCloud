@@ -210,4 +210,50 @@ export interface UpdatePlaylistData {
     name: string;
     type: string;
   };
+}
+
+// Tweet-related types
+export interface Tweet {
+  id: string;
+  user_id: string;
+  content: string;
+  created_at: string;
+  updated_at?: string;
+  like_count: number;
+  comment_count: number;
+  repost_count: number;
+  is_repost?: boolean;
+  original_tweet_id?: string | null;
+  reply_to_tweet_id?: string | null;
+  image_url?: string | null;
+  user?: User;
+  is_liked?: boolean;
+  is_reposted?: boolean;
+  original_tweet?: Tweet;
+}
+
+export interface TweetLike {
+  id: string;
+  user_id: string;
+  tweet_id: string;
+  created_at: string;
+  user?: User;
+}
+
+export interface TweetRepost {
+  id: string;
+  user_id: string;
+  tweet_id: string;
+  created_at: string;
+  user?: User;
+}
+
+export interface TweetComment {
+  id: string;
+  user_id: string;
+  tweet_id: string;
+  content: string;
+  created_at: string;
+  updated_at?: string;
+  user?: User;
 } 

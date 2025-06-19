@@ -1,0 +1,152 @@
+DanCloud Comment Feature – Comprehensive Debugging Prompt for Cursor Chat
+============================================================
+
+OVERVIEW OF THE PROJECT
+-----------------------
+1. **App Name / Purpose**
+   • *DanCloud* is a cross-platform music & social application built with **React Native (Expo SDK 53)** and **Supabase** as the backend.
+   • Core pillars: audio streaming (Expo-AV, moving to expo-audio), social discovery feed, playlists, a Twitter-like micro-blogging module ("Tweets"), and standard user profile / authentication flows.
+
+2. **Tech Stack Snapshot**
+   • Front-end: React Native + Expo, TypeScript, React Navigation v6, Zustand / React Context for state, Tailwind + custom `ui` components.
+   • Backend: Supabase (PostgreSQL 15.0) with Row Level Security (RLS) enabled on all tables; Storage for images & audio; PostgREST auto-generated API consumed with `@supabase/supabase-js` v2.
+   • CI/Dev: Local macOS (14.4 Darwin 24.4.0), Node 20 LTS, `npx expo` for local dev, TestFlight / Android build.
+
+3. **Relevant Domain Objects**
+   • `tracks` – uploaded audio files. Columns include `id (uuid PK)`, `uploader_id`, `comments_count`, etc.
+   • `comments` – user generated comments on **tracks** (NOT on tweets yet). Columns:
+     ```sql
+     id uuid primary key default uuid_generate_v4(),
+     track_id uuid references tracks(id) on delete cascade,
+     user_id uuid references users(id) on delete cascade,
+     content text not null,
+     created_at timestamptz default now()
+     ```
+   • Two PostgreSQL RPC functions keep `tracks.comments_count` in sync:
+     ```sql
+     create or replace function increment_comment_count(track_id uuid)
+     returns void as $$
+     update tracks set comments_count = coalesce(comments_count,0)+1 where id = track_id; $$ language sql;
+
+     create or replace function decrement_comment_count(track_id uuid)
+     returns void as $$
+     update tracks set comments_count = greatest(coalesce(comments_count,0)-1,0) where id = track_id; $$ language sql;
+     ```
+
+4. **Front-End Flow (Files to inspect)**
+   • `src/services/commentService.ts` – all CRUD calls + local debug helpers.
+   • `src/components/TrackCard.tsx` & `src/screens/TrackDetailScreen.tsx` – display comment count & open modal.
+   • `src/screens/TrackDetailScreen.tsx` (comments list, comment input).
+
+THE BUG WE'RE STUCK ON
+----------------------
+*Symptoms*
+1. Reading comments works flawlessly (`select` succeeds and returns joined user 👤 object).
+2. **Creating a comment fails at the `insert` call**, resulting in a PostgREST error similar to:
+   ```json
+   {
+     "code": "42501",
+     "message": "new row violates row-level security policy for table \"comments\"",
+     "details": null,
+     "hint": null
+   }
+   ```
+3. This happens only on device; Supabase dashboard SQL insert using the same `user_id` works.
+4. Deleting a comment also fails with RLS errors when attempted from the app.
+
+*Notable Logs from `commentService.addComment()`*
+```
+=== COMMENT DEBUG INFO ===
+trackId: 163b…
+userId: 4949a300-a8da-48ec-967a-fea6b6ea092e
+userId type: string
+Session user ID: 4949a300-a8da-48ec-967a-fea6b6ea092e
+ID comparison: true
+=== END DEBUG INFO ===
+Comment insert error: { code: '42501', … }
+```
+
+PREVIOUS ATTEMPTS / MIGRATIONS APPLIED
+--------------------------------------
+We iteratively patched the `comments` RLS policies (see `supabase/migrations/`) :
+1. **20250113000001_fix_comments_rls_policies.sql** – original policy allowing insert/select by auth.uid().
+2. **20250113000003_fix_comments_rls_simple.sql** – simplified USING/WITH CHECK.
+3. **20250113000004_temp_disable_comments_rls.sql** – disabled RLS for debugging (✅ insert worked, proving schema & API call are fine).
+4. **20250113000006_re_enable_comments_rls_fixed_types.sql** – cast `auth.uid()` to text to avoid uuid ⇄ text mismatch.
+5. **20250113000007_debug_comments_rls_issue.sql** – added log via `raise notice` inside triggers.
+6. **20250113000008_final_comments_fix.sql** – current state (see excerpt below).
+
+```sql
+-- Allow authenticated insert
+create policy "Allow authenticated comment insert" on comments
+  for insert with check (auth.role() = 'authenticated');
+
+-- Trigger to validate NEW.user_id matches auth.uid()
+create or replace function validate_comment_user_id() returns trigger as $$
+  if new.user_id::text <> auth.uid()::text then
+    raise exception 'Comment user mismatch % ?', new.user_id, auth.uid() using errcode='insufficient_privilege';
+  end if; return new; $$ language plpgsql security definer;
+create trigger validate_comment_user_trigger before insert on comments
+  for each row execute function validate_comment_user_id();
+```
+
+Even with this permissive policy (only checks role but not track ownership) **insert still fails** via the API.
+When we temporarily `alter table comments disable row level security;` 👍 insert succeeds again.
+
+OTHER DIAGNOSTICS
+-----------------
+• `commentService.debugAuthContext()` calls a Supabase RPC (`debug_auth_context`) which logs the JWT claims; output confirms correct `sub` (user id) & `role`="authenticated".
+• The app supplies both `track_id` & `user_id` explicitly – both UUIDs.
+• `commentService.addComment()` call looks like:
+  ```ts
+  supabase.from('comments')
+           .insert({ track_id, user_id, content })
+           .select('*, user:users(id, username, profile_image_url)')
+           .single();
+  ```
+• We tried casting `user_id` to uuid server side, no change.
+• No other policies (on `tracks`) should interfere; we only reference `comments` table directly.
+
+ASK FOR THE NEW ASSISTANT
+-------------------------
+We need a **robust, secure & functional comment feature** that passes RLS & allows:
+1. Any authenticated user to create a comment on any public track.
+2. Users to update/delete *their own* comments.
+3. Reading comments to remain public.
+4. `comments_count` RPCs or triggers to keep counts in sync.
+
+DELIVERABLES
+------------
+1. Audit & repair Supabase `comments` policies/TRIGGERS so that mobile insert works.
+2. Provide migration SQL ready to apply via Supabase CLI.
+3. Amend Next-JS Types / Front-End if incorrect column names or type casts needed.
+4. Suggest additional testing strategy (e.g., unit tests using `supabase-js` with Service Role key).
+
+FULL DIRECTORY SNAPSHOT (June 2025)
+-----------------------------------
+*The following is a truncated listing—full tree available in `project_layout` of this chat:* 
+```
+DanCloud/
+  src/
+    services/commentService.ts
+    screens/TrackDetailScreen.tsx
+  supabase/
+    migrations/20250113000008_final_comments_fix.sql (plus earlier variants)
+    seed.sql
+  ... other files (audio, tweets, etc.)
+```
+
+KEY ENV VARS (from .env)
+------------------------
+```
+EXPO_PUBLIC_SUPABASE_URL=<redacted>
+EXPO_PUBLIC_SUPABASE_ANON_KEY=<redacted>
+```
+
+KNOWN LIMITATIONS / FUTURE WORK
+-------------------------------
+• Expo AV is deprecated – migration to expo-audio underway.
+• Tweet module comments (future) will reuse the same pattern; keep solution generic.
+• Real-time subscriptions for new comments not yet implemented — optional improvement once insert succeeds.
+
+✨ **Thank you!** Feel free to ask clarifying questions or request additional logs. Our goal is to have a deterministic, secure `comments` workflow that works from the mobile app without disabling RLS. 

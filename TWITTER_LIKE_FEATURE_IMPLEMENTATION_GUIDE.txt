@@ -1,0 +1,269 @@
+# DanCloud Twitter-Like Feature Implementation Guide
+
+## Overview
+We want to add a completely separate Twitter-like social feed to our existing DanCloud music app. This will be a text-based social platform that coexists with our main music-focused functionality.
+
+## Feature Requirements
+
+### Navigation & Access
+- Add a "bird" icon/thumbnail in the top-left of the main app (mirroring how notifications are accessed via top-right)
+- Clicking the bird icon navigates to the Twitter-like feed page
+- On the Twitter feed page, there should be a floating action button (FAB) in the bottom-right for creating new tweets
+- The page should have its own header with navigation back to main app
+
+### Core Functionality
+1. **Tweet Creation**
+   - Text-only posts (280 character limit like Twitter)
+   - Timestamp display
+   - User attribution (username, profile picture)
+
+2. **Social Interactions**
+   - Like tweets
+   - Comment on tweets (threaded comments)
+   - Repost/Retweet functionality
+   - View counts for engagement metrics
+
+3. **Feed Display**
+   - Chronological timeline of tweets
+   - Pull-to-refresh functionality
+   - Infinite scroll/pagination
+   - Real-time updates when possible
+
+4. **User Interface**
+   - Clean, Twitter-like design
+   - Responsive layout
+   - Dark/light theme compatibility
+   - Smooth animations and transitions
+
+## Current App Architecture
+
+### Technology Stack
+- **Framework**: React Native with Expo (v53.0.11)
+- **Navigation**: React Navigation with Stack and Tab navigators
+- **Backend**: Supabase (PostgreSQL database with real-time subscriptions)
+- **Authentication**: Supabase Auth with email/password
+- **State Management**: React Context API (AuthContext, AudioPlayerContext)
+- **Styling**: StyleSheet with custom theme system
+- **Audio**: Native audio service with custom audio player
+- **Build System**: EAS Build for production builds
+
+### Project Structure
+```
+src/
+├── components/          # Reusable UI components
+│   ├── ui/             # Basic UI elements (Button, Input, etc.)
+│   ├── BottomAudioPlayer.tsx
+│   ├── MessageInput.tsx
+│   └── TrackCard.tsx
+├── screens/            # Screen components
+│   ├── auth/          # Authentication screens
+│   ├── FeedScreen.tsx # Main music feed
+│   ├── ProfileScreen.tsx
+│   ├── ChatScreen.tsx
+│   └── NotificationsScreen.tsx
+├── navigation/         # Navigation configuration
+│   └── AppNavigator.tsx
+├── contexts/          # React Context providers
+│   ├── AuthContext.tsx
+│   └── AudioPlayerContext.tsx
+├── services/          # API and business logic
+│   ├── supabase.ts
+│   ├── trackService.ts
+│   ├── userService.ts
+│   ├── commentService.ts
+│   └── chatService.ts
+├── types/             # TypeScript type definitions
+│   ├── database.ts
+│   └── index.ts
+└── styles/            # Theme and styling
+    └── theme.ts
+```
+
+### Database Schema (Supabase)
+Current tables include:
+- `users` - User profiles and authentication
+- `tracks` - Music tracks with metadata
+- `comments` - Comments on tracks
+- `likes` - Track likes
+- `reposts` - Track reposts
+- `conversations` - Chat conversations
+- `messages` - Chat messages
+- `playlists` - User playlists
+- `playlist_tracks` - Playlist track relationships
+
+### Authentication System
+- Uses Supabase Auth with email/password
+- AuthContext provides user state throughout app
+- Row Level Security (RLS) policies protect data
+- User profiles automatically created on registration
+
+### Navigation Structure
+```
+App.tsx
+└── GestureHandlerRootView
+    └── SafeAreaProvider
+        └── AuthProvider
+            └── AudioPlayerProvider
+                └── AppNavigator
+                    ├── AuthStack (when not logged in)
+                    │   ├── LoginScreen
+                    │   ├── RegisterScreen
+                    │   └── ForgotPasswordScreen
+                    └── MainStack (when logged in)
+                        ├── MainTabs
+                        │   ├── Feed (FeedScreen)
+                        │   ├── Playlists
+                        │   ├── Upload
+                        │   ├── Inbox
+                        │   ├── Notifications
+                        │   └── Profile
+                        ├── TrackDetail
+                        ├── UserProfile
+                        ├── Chat
+                        └── [Other detail screens]
+```
+
+### Current Header Implementation
+The main screens use a custom header with:
+- Left side: Logo or back button
+- Center: Screen title or search
+- Right side: Notification bell icon (navigates to NotificationsScreen)
+
+## Implementation Plan
+
+### Database Changes Needed
+Create new tables in Supabase:
+```sql
+-- Tweets table
+CREATE TABLE tweets (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  content TEXT NOT NULL CHECK (char_length(content) <= 280),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  like_count INTEGER DEFAULT 0,
+  comment_count INTEGER DEFAULT 0,
+  repost_count INTEGER DEFAULT 0,
+  is_repost BOOLEAN DEFAULT false,
+  original_tweet_id UUID REFERENCES tweets(id) ON DELETE CASCADE,
+  reply_to_tweet_id UUID REFERENCES tweets(id) ON DELETE SET NULL
+);
+
+-- Tweet likes
+CREATE TABLE tweet_likes (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  tweet_id UUID REFERENCES tweets(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(user_id, tweet_id)
+);
+
+-- Tweet comments (replies)
+CREATE TABLE tweet_comments (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  tweet_id UUID REFERENCES tweets(id) ON DELETE CASCADE,
+  content TEXT NOT NULL CHECK (char_length(content) <= 280),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Tweet reposts
+CREATE TABLE tweet_reposts (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  tweet_id UUID REFERENCES tweets(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(user_id, tweet_id)
+);
+```
+
+### New Files to Create
+
+1. **Screens**
+   - `src/screens/TwitterFeedScreen.tsx` - Main Twitter feed
+   - `src/screens/CreateTweetScreen.tsx` - Tweet composition
+   - `src/screens/TweetDetailScreen.tsx` - Individual tweet with comments
+
+2. **Components**
+   - `src/components/TweetCard.tsx` - Individual tweet display
+   - `src/components/TweetComposer.tsx` - Tweet creation form
+   - `src/components/FloatingActionButton.tsx` - FAB for new tweets
+
+3. **Services**
+   - `src/services/tweetService.ts` - API calls for tweets
+   - `src/types/tweet.ts` - TypeScript types for tweet data
+
+4. **Navigation Updates**
+   - Update `AppNavigator.tsx` to include Twitter screens
+   - Add bird icon to main app header
+
+### Key Implementation Details
+
+#### Navigation Integration
+- Add TwitterFeed as a stack screen accessible from main app
+- Modify existing headers to include bird icon navigation
+- Ensure proper back navigation flow
+
+#### Real-time Features
+- Use Supabase real-time subscriptions for live tweet updates
+- Implement optimistic updates for better UX
+- Handle connection states gracefully
+
+#### UI/UX Considerations
+- Follow existing app design patterns and theme
+- Reuse existing components where possible (Button, Input, etc.)
+- Maintain consistency with current navigation patterns
+- Ensure accessibility compliance
+
+#### Performance Optimization
+- Implement FlatList with proper virtualization for tweet feed
+- Use pagination for loading tweets
+- Optimize images and profile pictures
+- Implement proper loading states
+
+#### State Management
+- Consider creating TweetContext for tweet-related state
+- Integrate with existing AuthContext for user data
+- Handle tweet cache and updates efficiently
+
+### Security Considerations
+- Implement proper RLS policies for new tables
+- Validate tweet content on both client and server
+- Protect against spam and abuse
+- Ensure proper user authorization for actions
+
+### Testing Strategy
+- Test navigation flows between music and Twitter features
+- Verify real-time updates work correctly
+- Test performance with large numbers of tweets
+- Ensure proper error handling and offline behavior
+
+## Development Approach
+
+1. **Phase 1: Basic Structure**
+   - Create database tables and RLS policies
+   - Set up basic navigation and screens
+   - Implement tweet creation and display
+
+2. **Phase 2: Social Features**
+   - Add like, comment, and repost functionality
+   - Implement user interactions and engagement
+
+3. **Phase 3: Polish & Performance**
+   - Add real-time updates
+   - Optimize performance and loading
+   - Implement advanced features and animations
+
+4. **Phase 4: Integration**
+   - Ensure seamless integration with existing music features
+   - Test complete user flows
+   - Prepare for production deployment
+
+## Success Metrics
+- Users can easily navigate between music and Twitter features
+- Tweet creation and interaction flows work smoothly
+- Performance remains good with growing content
+- User engagement increases with new social features
+
+This implementation will create a cohesive dual-purpose app that maintains the existing music functionality while adding a robust social platform. 

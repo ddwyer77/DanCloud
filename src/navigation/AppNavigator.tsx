@@ -32,6 +32,13 @@ import CreatePlaylistScreen from '../screens/CreatePlaylistScreen';
 import PlaylistDetailScreen from '../screens/PlaylistDetailScreen';
 import AddToPlaylistScreen from '../screens/AddToPlaylistScreen';
 
+// Twitter-like feature screens
+import TwitterFeedScreen from '../screens/TwitterFeedScreen';
+import CreateTweetScreen from '../screens/CreateTweetScreen';
+import TweetDetailScreen from '../screens/TweetDetailScreen';
+import ViewImageScreen from '../screens/ViewImageScreen';
+import QuoteTweetScreen from '../screens/QuoteTweetScreen';
+
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
@@ -110,6 +117,11 @@ const MainStack = () => (
         headerShown: false
       }}
     />
+    <Stack.Screen name="TwitterFeed" component={TwitterFeedScreen} options={{ headerShown: false }} />
+    <Stack.Screen name="CreateTweet" component={CreateTweetScreen} options={{ headerShown: false }} />
+    <Stack.Screen name="TweetDetail" component={TweetDetailScreen} options={{ headerShown: false }} />
+    <Stack.Screen name="QuoteTweet" component={QuoteTweetScreen} options={{ headerShown: false }} />
+    <Stack.Screen name="ViewImage" component={ViewImageScreen} options={{ headerShown: false, presentation: 'modal' }} />
   </Stack.Navigator>
 );
 

@@ -119,7 +119,12 @@ const FeedScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.navigate('TwitterFeed')} style={styles.birdButton}>
+          <Ionicons name="logo-twitter" size={24} color="#1DA1F2" />
+        </TouchableOpacity>
+
         <Text style={styles.headerTitle}>DanCloud</Text>
+
         <TouchableOpacity 
           style={styles.notificationsButton}
           onPress={() => navigation.navigate('Notifications')}
@@ -164,6 +169,9 @@ const styles = StyleSheet.create({
     borderBottomColor: '#e0e0e0',
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  birdButton: {
+    marginRight: 12,
   },
   headerTitle: {
     fontSize: 24,
